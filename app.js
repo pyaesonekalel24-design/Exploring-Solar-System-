@@ -20,9 +20,29 @@ let pitch = -0.08;
 let dragging = false;
 let lastPointerX = 0;
 let lastPointerY = 0;
+let energy = 100;
+let currentSpeedMode = "chill";
 
 const movementSpeed = 110;
 const lookSensitivity = 0.0035;
+const SUN_RECHARGE_RADIUS = 85;
+const ENERGY_RECHARGE_RATE = 18;
+
+const speedModes = {
+  chill: {
+    multiplier: 1,
+    drainRate: 0
+  },
+  sonic: {
+    multiplier: 2,
+    drainRate: 4
+  },
+  poop: {
+    multiplier: 4,
+    drainRate: 12
+  }
+};
+
 const pressedControls = new Set();
 const pressedKeys = new Set();
 
@@ -41,6 +61,44 @@ function showError(message) {
   gameUI.hidden = true;
   errorMessage.textContent = message;
   errorScreen.hidden = false;
+}
+
+function updateSpeedButtons() {
+  const speedButtons = document.querySelectorAll("[data-speed]");
+
+  for (const button of speedButtons) {
+    const isSelected = button.dataset.speed === currentSpeedMode;
+    button.classList.toggle("is-selected", isSelected);
+    button.setAttribute("aria-pressed", String(isSelected));
+  }
+}
+
+function setSpeedMode(mode) {
+  if (!speedModes[mode]) {
+    return;
+  }
+
+  currentSpeedMode = mode;
+  updateSpeedButtons();
+}
+
+function updateEnergyDisplay() {
+  const energyFill = document.getElementById("energy-fill");
+  const energyPercent = document.getElementById("energy-percent");
+  const energyBar = document.getElementById("energy-bar");
+  const displayedEnergy = Math.round(energy);
+
+  energyFill.style.width = `${energy}%`;
+  energyPercent.textContent = `${displayedEnergy}%`;
+  energyBar.setAttribute("aria-valuenow", String(displayedEnergy));
+
+  if (energy <= 25) {
+    energyFill.style.backgroundColor = "#ff665f";
+  } else if (energy <= 55) {
+    energyFill.style.backgroundColor = "#ffd15c";
+  } else {
+    energyFill.style.backgroundColor = "#65e68a";
+  }
 }
 
 function createStarField() {
@@ -122,7 +180,12 @@ function createPlanet(data) {
   orbitGroup.add(planet);
 
   if (data.hasRings) {
-    const ringGeometry = new THREE.RingGeometry(data.size * 1.35, data.size * 2.15, 72);
+    const ringGeometry = new THREE.RingGeometry(
+      data.size * 1.35,
+      data.size * 2.15,
+      72
+    );
+
     const ringMaterial = new THREE.MeshStandardMaterial({
       color: 0xc9b98e,
       side: THREE.DoubleSide,
@@ -141,6 +204,7 @@ function createPlanet(data) {
     planet.add(moonPivot);
 
     const moonGeometry = new THREE.SphereGeometry(2.6, 20, 16);
+
     const moonMaterial = new THREE.MeshStandardMaterial({
       color: 0xbfc4cf,
       roughness: 1
@@ -178,20 +242,33 @@ function createSolarSystem() {
   pitch = -0.08;
   camera.rotation.set(pitch, yaw, 0);
 
-  const ambientLight = new THREE.HemisphereLight(0xa8bbff, 0x17121c, 1.45);
+  const ambientLight = new THREE.HemisphereLight(
+    0xa8bbff,
+    0x17121c,
+    1.45
+  );
+
   scene.add(ambientLight);
 
-  const sunLight = new THREE.PointLight(0xffd69a, 30000, 0, 2);
+  const sunLight = new THREE.PointLight(
+    0xffd69a,
+    30000,
+    0,
+    2
+  );
+
   sunLight.position.set(0, 0, 0);
   scene.add(sunLight);
 
   const sunGeometry = new THREE.SphereGeometry(30, 48, 32);
+
   const sunMaterial = new THREE.MeshStandardMaterial({
     color: 0xffa928,
     emissive: 0xff7900,
     emissiveIntensity: 2.5,
     roughness: 0.65
   });
+
   const sun = new THREE.Mesh(sunGeometry, sunMaterial);
   scene.add(sun);
 
@@ -205,6 +282,7 @@ function createSolarSystem() {
       depthWrite: false
     })
   );
+
   scene.add(glow);
 
   createStarField();
@@ -304,18 +382,36 @@ function createSolarSystem() {
     alpha: false
   });
 
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(
+    Math.min(window.devicePixelRatio || 1, 2)
+  );
+
+  renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+  );
+
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.25;
+
   gameElement.prepend(renderer.domElement);
 
-  renderer.domElement.setAttribute("aria-label", "Interactive 3D Solar System");
-  renderer.domElement.setAttribute("role", "application");
+  renderer.domElement.setAttribute(
+    "aria-label",
+    "Interactive 3D Solar System"
+  );
+
+  renderer.domElement.setAttribute(
+    "role",
+    "application"
+  );
 
   window.addEventListener("resize", handleResize);
+
   setupControls();
+  updateSpeedButtons();
+  updateEnergyDisplay();
   animate();
 }
 
@@ -324,10 +420,19 @@ function handleResize() {
     return;
   }
 
-  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.aspect =
+    window.innerWidth / window.innerHeight;
+
   camera.updateProjectionMatrix();
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  renderer.setPixelRatio(
+    Math.min(window.devicePixelRatio || 1, 2)
+  );
+
+  renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+  );
 }
 
 function isControlPressed(name) {
@@ -336,60 +441,167 @@ function isControlPressed(name) {
   }
 
   const keys = controlKeys[name];
+
   return keys.some((key) => pressedKeys.has(key));
 }
 
 function updateMovement(deltaTime) {
   if (!gameStarted) {
-    return;
+    return false;
   }
 
   const forwardAmount =
-    Number(isControlPressed("forward")) - Number(isControlPressed("back"));
-  const rightAmount =
-    Number(isControlPressed("right")) - Number(isControlPressed("left"));
-  const verticalAmount =
-    Number(isControlPressed("up")) - Number(isControlPressed("down"));
+    Number(isControlPressed("forward")) -
+    Number(isControlPressed("back"));
 
-  if (forwardAmount === 0 && rightAmount === 0 && verticalAmount === 0) {
+  const rightAmount =
+    Number(isControlPressed("right")) -
+    Number(isControlPressed("left"));
+
+  const verticalAmount =
+    Number(isControlPressed("up")) -
+    Number(isControlPressed("down"));
+
+  const movement = new THREE.Vector3();
+
+  if (forwardAmount !== 0) {
+    const forward = new THREE.Vector3();
+
+    camera.getWorldDirection(forward);
+
+    movement.addScaledVector(
+      forward,
+      forwardAmount
+    );
+  }
+
+  if (rightAmount !== 0) {
+    const forward = new THREE.Vector3();
+
+    camera.getWorldDirection(forward);
+
+    const right = new THREE.Vector3()
+      .crossVectors(
+        forward,
+        new THREE.Vector3(0, 1, 0)
+      )
+      .normalize();
+
+    movement.addScaledVector(
+      right,
+      rightAmount
+    );
+  }
+
+  movement.y += verticalAmount;
+
+  if (movement.lengthSq() === 0) {
+    return false;
+  }
+
+  if (
+    energy <= 0 &&
+    currentSpeedMode !== "chill"
+  ) {
+    setSpeedMode("chill");
+  }
+
+  movement.normalize();
+
+  const selectedSpeed =
+    speedModes[currentSpeedMode];
+
+  const actualSpeed =
+    movementSpeed *
+    selectedSpeed.multiplier;
+
+  camera.position.addScaledVector(
+    movement,
+    actualSpeed * deltaTime
+  );
+
+  return true;
+}
+
+function updateEnergy(deltaTime, isMoving) {
+  if (!gameStarted) {
     return;
   }
 
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward);
+  const selectedSpeed =
+    speedModes[currentSpeedMode];
 
-  const right = new THREE.Vector3()
-    .crossVectors(forward, new THREE.Vector3(0, 1, 0))
-    .normalize();
+  if (
+    isMoving &&
+    selectedSpeed.drainRate > 0
+  ) {
+    energy -=
+      selectedSpeed.drainRate *
+      deltaTime;
 
-  const movement = new THREE.Vector3();
-  movement.addScaledVector(forward, forwardAmount);
-  movement.addScaledVector(right, rightAmount);
-  movement.y += verticalAmount;
+    energy = Math.max(0, energy);
 
-  if (movement.lengthSq() > 0) {
-    movement.normalize();
-    camera.position.addScaledVector(movement, movementSpeed * deltaTime);
+    if (energy === 0) {
+      setSpeedMode("chill");
+    }
   }
+
+  const distanceFromSun =
+    camera.position.distanceTo(
+      new THREE.Vector3(0, 0, 0)
+    );
+
+  if (
+    distanceFromSun <=
+    SUN_RECHARGE_RADIUS
+  ) {
+    energy +=
+      ENERGY_RECHARGE_RATE *
+      deltaTime;
+
+    energy = Math.min(100, energy);
+  }
+
+  updateEnergyDisplay();
 }
 
 function animate() {
-  animationFrameId = requestAnimationFrame(animate);
+  animationFrameId =
+    requestAnimationFrame(animate);
 
-  const deltaTime = Math.min(renderer.info ? 0.05 : 0.05, 0.05);
+  const deltaTime =
+    Math.min(clock.getDelta(), 0.05);
 
   for (const planetData of solarPlanets) {
-    planetData.angle += planetData.orbitSpeed * deltaTime;
-    planetData.orbitGroup.rotation.y = planetData.angle;
-    planetData.planet.rotation.y += planetData.spinSpeed * deltaTime;
+    planetData.angle +=
+      planetData.orbitSpeed *
+      deltaTime;
+
+    planetData.orbitGroup.rotation.y =
+      planetData.angle;
+
+    planetData.planet.rotation.y +=
+      planetData.spinSpeed *
+      deltaTime;
   }
 
   if (moonPivot) {
-    moonPivot.rotation.y += 0.8 * deltaTime;
+    moonPivot.rotation.y +=
+      0.8 * deltaTime;
   }
 
-  updateMovement(deltaTime);
-  renderer.render(scene, camera);
+  const isMoving =
+    updateMovement(deltaTime);
+
+  updateEnergy(
+    deltaTime,
+    isMoving
+  );
+
+  renderer.render(
+    scene,
+    camera
+  );
 }
 
 function startGame() {
@@ -398,125 +610,273 @@ function startGame() {
   }
 
   gameStarted = true;
+
   startScreen.hidden = true;
   gameUI.hidden = false;
+
   renderer.domElement.focus();
 }
 
 function setupControls() {
-  const canvas = renderer.domElement;
-  const controlButtons = document.querySelectorAll("[data-control]");
+  const canvas =
+    renderer.domElement;
 
-  for (const button of controlButtons) {
-    const controlName = button.dataset.control;
+  const controlButtons =
+    document.querySelectorAll(
+      "[data-control]"
+    );
 
-    button.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
+  const speedButtons =
+    document.querySelectorAll(
+      "[data-speed]"
+    );
 
-      pressedControls.add(controlName);
-      button.classList.add("is-pressed");
-
-      try {
-        button.setPointerCapture(event.pointerId);
-      } catch {
-        // Pointer capture is optional; the control still works without it.
+  for (const button of speedButtons) {
+    button.addEventListener(
+      "click",
+      () => {
+        setSpeedMode(
+          button.dataset.speed
+        );
       }
-    });
-
-    const releaseButton = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      pressedControls.delete(controlName);
-      button.classList.remove("is-pressed");
-    };
-
-    button.addEventListener("pointerup", releaseButton);
-    button.addEventListener("pointercancel", releaseButton);
-    button.addEventListener("lostpointercapture", () => {
-      pressedControls.delete(controlName);
-      button.classList.remove("is-pressed");
-    });
-
-    button.addEventListener("contextmenu", (event) => {
-      event.preventDefault();
-    });
+    );
   }
 
-  canvas.addEventListener("pointerdown", (event) => {
-    if (!gameStarted || event.button !== 0) {
-      return;
+  for (const button of controlButtons) {
+    const controlName =
+      button.dataset.control;
+
+    button.addEventListener(
+      "pointerdown",
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        pressedControls.add(
+          controlName
+        );
+
+        button.classList.add(
+          "is-pressed"
+        );
+
+        try {
+          button.setPointerCapture(
+            event.pointerId
+          );
+        } catch {
+          // Pointer capture is optional.
+        }
+      }
+    );
+
+    const releaseButton =
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        pressedControls.delete(
+          controlName
+        );
+
+        button.classList.remove(
+          "is-pressed"
+        );
+      };
+
+    button.addEventListener(
+      "pointerup",
+      releaseButton
+    );
+
+    button.addEventListener(
+      "pointercancel",
+      releaseButton
+    );
+
+    button.addEventListener(
+      "lostpointercapture",
+      () => {
+        pressedControls.delete(
+          controlName
+        );
+
+        button.classList.remove(
+          "is-pressed"
+        );
+      }
+    );
+
+    button.addEventListener(
+      "contextmenu",
+      (event) => {
+        event.preventDefault();
+      }
+    );
+  }
+
+  canvas.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (
+        !gameStarted ||
+        event.button !== 0
+      ) {
+        return;
+      }
+
+      dragging = true;
+
+      lastPointerX =
+        event.clientX;
+
+      lastPointerY =
+        event.clientY;
+
+      try {
+        canvas.setPointerCapture(
+          event.pointerId
+        );
+      } catch {
+        // Pointer capture is optional.
+      }
     }
+  );
 
-    dragging = true;
-    lastPointerX = event.clientX;
-    lastPointerY = event.clientY;
+  canvas.addEventListener(
+    "pointermove",
+    (event) => {
+      if (
+        !dragging ||
+        !gameStarted
+      ) {
+        return;
+      }
 
-    try {
-      canvas.setPointerCapture(event.pointerId);
-    } catch {
-      // Pointer capture is optional.
+      const deltaX =
+        event.clientX -
+        lastPointerX;
+
+      const deltaY =
+        event.clientY -
+        lastPointerY;
+
+      lastPointerX =
+        event.clientX;
+
+      lastPointerY =
+        event.clientY;
+
+      yaw +=
+        deltaX *
+        lookSensitivity;
+
+      // Swipe UP looks UP.
+      // Swipe DOWN looks DOWN.
+      pitch +=
+        deltaY *
+        lookSensitivity;
+
+      pitch =
+        THREE.MathUtils.clamp(
+          pitch,
+          -Math.PI / 2 + 0.05,
+          Math.PI / 2 - 0.05
+        );
+
+      camera.rotation.set(
+        pitch,
+        yaw,
+        0
+      );
     }
-  });
-
-  canvas.addEventListener("pointermove", (event) => {
-    if (!dragging || !gameStarted) {
-      return;
-    }
-
-    const deltaX = event.clientX - lastPointerX;
-    const deltaY = event.clientY - lastPointerY;
-    lastPointerX = event.clientX;
-    lastPointerY = event.clientY;
-
-    yaw += deltaX * lookSensitivity;
-    pitch -= deltaY * lookSensitivity;
-    pitch = THREE.MathUtils.clamp(pitch, -Math.PI / 2 + 0.05, Math.PI / 2 - 0.05);
-
-    camera.rotation.set(pitch, yaw, 0);
-  });
+  );
 
   const stopDragging = () => {
     dragging = false;
   };
 
-  canvas.addEventListener("pointerup", stopDragging);
-  canvas.addEventListener("pointercancel", stopDragging);
-  canvas.addEventListener("lostpointercapture", stopDragging);
+  canvas.addEventListener(
+    "pointerup",
+    stopDragging
+  );
 
-  window.addEventListener("keydown", (event) => {
-    const key = event.key.toLowerCase();
-    const allControlKeys = Object.values(controlKeys).flat();
+  canvas.addEventListener(
+    "pointercancel",
+    stopDragging
+  );
 
-    if (allControlKeys.includes(key)) {
-      event.preventDefault();
-      pressedKeys.add(key);
+  canvas.addEventListener(
+    "lostpointercapture",
+    stopDragging
+  );
+
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      const key =
+        event.key.toLowerCase();
+
+      const allControlKeys =
+        Object.values(controlKeys).flat();
+
+      if (
+        allControlKeys.includes(key)
+      ) {
+        event.preventDefault();
+        pressedKeys.add(key);
+      }
     }
-  });
+  );
 
-  window.addEventListener("keyup", (event) => {
-    pressedKeys.delete(event.key.toLowerCase());
-  });
-
-  window.addEventListener("blur", () => {
-    pressedControls.clear();
-    pressedKeys.clear();
-
-    for (const button of controlButtons) {
-      button.classList.remove("is-pressed");
+  window.addEventListener(
+    "keyup",
+    (event) => {
+      pressedKeys.delete(
+        event.key.toLowerCase()
+      );
     }
+  );
 
-    dragging = false;
-  });
+  window.addEventListener(
+    "blur",
+    () => {
+      pressedControls.clear();
+      pressedKeys.clear();
+
+      for (
+        const button of controlButtons
+      ) {
+        button.classList.remove(
+          "is-pressed"
+        );
+      }
+
+      dragging = false;
+    }
+  );
 }
 
-startButton.addEventListener("click", startGame);
+const clock =
+  new THREE.Clock();
+
+startButton.addEventListener(
+  "click",
+  startGame
+);
 
 try {
   createSolarSystem();
+
   loadingScreen.hidden = true;
   startScreen.hidden = false;
 } catch (error) {
-  console.error("Could not initialize the Solar System game:", error);
-  showError("The 3D scene could not be initialized. Please check that WebGL is available and reload the page.");
+  console.error(
+    "Could not initialize the Solar System game:",
+    error
+  );
+
+  showError(
+    "The 3D scene could not be initialized. Please check that WebGL is available and reload the page."
+  );
 }
