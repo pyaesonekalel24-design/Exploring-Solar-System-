@@ -33,35 +33,41 @@
       </div>
     </div>
 
+    <div id="planet-label-layer" aria-hidden="true"></div>
+
     <div id="game-ui" hidden>
-      <div id="energy-hud" aria-label="Energy">
-        <div
-          id="energy-bar"
-          role="progressbar"
-          aria-label="Energy"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow="100"
-        >
-          <div id="energy-fill"></div>
+      <div id="helper-ui">
+        <div id="energy-hud" aria-label="Energy">
+          <div
+            id="energy-bar"
+            role="progressbar"
+            aria-label="Energy"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="100"
+          >
+            <div id="energy-fill"></div>
+          </div>
+          <span id="energy-percent">100%</span>
         </div>
-        <span id="energy-percent">100%</span>
+
+        <div id="speed-panel" aria-label="Flying speed">
+          <button class="speed-button is-selected" type="button" data-speed="chill" aria-pressed="true">
+            CHILL
+          </button>
+          <button class="speed-button" type="button" data-speed="sonic" aria-pressed="false">
+            SONIC
+          </button>
+          <button class="speed-button poop-button" type="button" data-speed="poop" aria-pressed="false">
+            <span>U NEED TO</span>
+            <span>POOP</span>
+          </button>
+        </div>
+
+        <div id="sun-indicator" aria-hidden="true"></div>
       </div>
 
-      <div id="speed-panel" aria-label="Flying speed">
-        <button class="speed-button is-selected" type="button" data-speed="chill" aria-pressed="true">
-          CHILL
-        </button>
-
-        <button class="speed-button" type="button" data-speed="sonic" aria-pressed="false">
-          SONIC
-        </button>
-
-        <button class="speed-button poop-button" type="button" data-speed="poop" aria-pressed="false">
-          <span>U NEED TO</span>
-          <span>POOP</span>
-        </button>
-      </div>
+      <button id="ui-toggle" type="button" aria-pressed="false">UI OFF</button>
 
       <div id="controls" aria-label="Flight controls">
         <div class="movement-pad" aria-label="Horizontal movement">
