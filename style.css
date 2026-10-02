@@ -105,7 +105,8 @@ button {
 }
 
 #start-button:focus-visible,
-.control-button:focus-visible {
+.control-button:focus-visible,
+.speed-button:focus-visible {
   outline: 3px solid #ffffff;
   outline-offset: 3px;
 }
@@ -139,6 +140,98 @@ button {
   color: #e4e9ff;
   font-size: 0.82rem;
   text-align: center;
+}
+
+#energy-hud {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  left: max(16px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(170px, 39vw);
+  pointer-events: none;
+}
+
+#energy-bar {
+  flex: 1;
+  height: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(220, 230, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(8, 12, 28, 0.8);
+}
+
+#energy-fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: #65e68a;
+  transition: width 0.12s linear, background-color 0.2s ease;
+}
+
+#energy-percent {
+  min-width: 38px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: right;
+  text-shadow: 0 1px 5px #000000;
+}
+
+#speed-panel {
+  position: absolute;
+  top: max(58px, calc(env(safe-area-inset-top) + 48px));
+  left: 50%;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.35fr;
+  gap: 8px;
+  width: min(430px, calc(100% - 24px));
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+.speed-button {
+  min-width: 0;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 1px solid rgba(220, 230, 255, 0.35);
+  border-radius: 12px;
+  background: rgba(22, 32, 61, 0.82);
+  color: #ffffff;
+  opacity: 0.5;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.05;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.speed-button span {
+  display: block;
+}
+
+.speed-button.is-selected {
+  opacity: 1;
+}
+
+.speed-button[data-speed="chill"].is-selected {
+  border-color: #8bffab;
+  background: #16713b;
+  color: #ffffff;
+}
+
+.speed-button[data-speed="sonic"].is-selected {
+  border-color: #91c9ff;
+  background: #1769b5;
+  color: #ffffff;
+}
+
+.speed-button[data-speed="poop"].is-selected {
+  border-color: #ffe48b;
+  background: #b96a12;
+  color: #ffffff;
 }
 
 #controls {
@@ -223,6 +316,21 @@ button {
 @media (max-width: 430px) {
   #look-hint {
     font-size: 0.74rem;
+  }
+
+  #energy-hud {
+    width: min(145px, 39vw);
+  }
+
+  #speed-panel {
+    gap: 6px;
+    top: max(58px, calc(env(safe-area-inset-top) + 48px));
+  }
+
+  .speed-button {
+    min-height: 48px;
+    padding: 5px 4px;
+    font-size: 0.68rem;
   }
 
   #controls {
