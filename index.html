@@ -36,6 +36,33 @@
     <div id="game-ui" hidden>
       <div id="look-hint">Drag anywhere outside the buttons to look around</div>
 
+      <div id="energy-hud" aria-label="Energy">
+        <div
+          id="energy-bar"
+          role="progressbar"
+          aria-label="Energy"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="100"
+        >
+          <div id="energy-fill"></div>
+        </div>
+        <span id="energy-percent">100%</span>
+      </div>
+
+      <div id="speed-panel" aria-label="Flying speed">
+        <button class="speed-button is-selected" type="button" data-speed="chill" aria-pressed="true">
+          CHILL
+        </button>
+        <button class="speed-button" type="button" data-speed="sonic" aria-pressed="false">
+          SONIC
+        </button>
+        <button class="speed-button poop-button" type="button" data-speed="poop" aria-pressed="false">
+          <span>U NEED TO</span>
+          <span>POOP</span>
+        </button>
+      </div>
+
       <div id="controls" aria-label="Flight controls">
         <div class="movement-pad" aria-label="Horizontal movement">
           <button class="control-button forward-button" type="button" data-control="forward" aria-label="Forward">FORWARD</button>
