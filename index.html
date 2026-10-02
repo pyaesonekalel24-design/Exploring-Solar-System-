@@ -2,35 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
   >
-
-  <meta
-    name="theme-color"
-    content="#050711"
-  >
-
+  <meta name="theme-color" content="#050711">
   <title>Solar System — Flying Game</title>
-
-  <link
-    rel="stylesheet"
-    href="style.css"
-  >
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
   <main id="game">
 
-    <div
-      id="loading-screen"
-      class="screen"
-    >
+    <div id="loading-screen" class="screen">
       <p>Loading Solar System…</p>
     </div>
-
 
     <section
       id="start-screen"
@@ -39,14 +25,9 @@
       hidden
     >
       <div class="start-card">
+        <h1 id="game-title">SOLAR SYSTEM</h1>
 
-        <h1 id="game-title">
-          SOLAR SYSTEM
-        </h1>
-
-        <p>
-          Fly through the Solar System
-        </p>
+        <p>Fly through the Solar System</p>
 
         <button
           id="start-button"
@@ -56,52 +37,33 @@
         </button>
 
         <p class="help-text">
-          Drag to look around.
-          Use the on-screen buttons to fly.
+          Drag to look around. Use the on-screen buttons to fly.
           On desktop, use WASD, Space, and Shift.
         </p>
-
       </div>
     </section>
 
-
-    <div
-      id="error-screen"
-      class="screen"
-      hidden
-    >
+    <div id="error-screen" class="screen" hidden>
       <div class="start-card">
-
-        <h1>
-          Unable to start
-        </h1>
+        <h1>Unable to start</h1>
 
         <p id="error-message">
           The 3D scene could not be loaded.
         </p>
 
         <p class="help-text">
-          Try opening this page in an up-to-date browser
-          with WebGL enabled.
+          Try opening this page in an up-to-date browser with WebGL enabled.
         </p>
-
       </div>
     </div>
 
-
-    <!-- Planet labels are helper UI. -->
     <div
       id="planet-label-layer"
       aria-hidden="true"
     ></div>
 
+    <div id="game-ui" hidden>
 
-    <div
-      id="game-ui"
-      hidden
-    >
-
-      <!-- Helper UI disappears when UI is OFF. -->
       <div id="helper-ui">
 
         <div
@@ -124,12 +86,10 @@
           </span>
         </div>
 
-
         <div
           id="speed-panel"
           aria-label="Flying speed"
         >
-
           <button
             class="speed-button is-selected"
             type="button"
@@ -138,7 +98,6 @@
           >
             CHILL
           </button>
-
 
           <button
             class="speed-button"
@@ -149,22 +108,18 @@
             SUPERMAN
           </button>
 
-
           <button
-            class="speed-button creator-button"
+            class="speed-button"
             type="button"
             data-speed="creator"
             aria-pressed="false"
           >
             CREATOR
           </button>
-
         </div>
 
       </div>
 
-
-      <!-- This button always remains visible. -->
       <button
         id="ui-toggle"
         type="button"
@@ -173,18 +128,14 @@
         UI OFF
       </button>
 
-
-      <!-- Flight controls always remain visible. -->
       <div
         id="controls"
         aria-label="Flight controls"
       >
-
         <div
           class="movement-pad"
           aria-label="Horizontal movement"
         >
-
           <button
             class="control-button forward-button"
             type="button"
@@ -193,7 +144,6 @@
           >
             FORWARD
           </button>
-
 
           <button
             class="control-button left-button"
@@ -204,7 +154,6 @@
             LEFT
           </button>
 
-
           <button
             class="control-button back-button"
             type="button"
@@ -214,7 +163,6 @@
             BACK
           </button>
 
-
           <button
             class="control-button right-button"
             type="button"
@@ -223,15 +171,12 @@
           >
             RIGHT
           </button>
-
         </div>
-
 
         <div
           class="vertical-pad"
           aria-label="Vertical movement"
         >
-
           <button
             class="control-button"
             type="button"
@@ -241,7 +186,6 @@
             UP
           </button>
 
-
           <button
             class="control-button"
             type="button"
@@ -250,15 +194,12 @@
           >
             DOWN
           </button>
-
         </div>
-
       </div>
 
     </div>
 
   </main>
-
 
   <script
     type="module"
