@@ -126,22 +126,6 @@ button {
   pointer-events: none;
 }
 
-#look-hint {
-  position: absolute;
-  top: max(16px, env(safe-area-inset-top));
-  left: 50%;
-  width: max-content;
-  max-width: calc(100% - 32px);
-  padding: 9px 14px;
-  transform: translateX(-50%);
-  border: 1px solid rgba(210, 220, 255, 0.18);
-  border-radius: 999px;
-  background: rgba(8, 12, 28, 0.62);
-  color: #e4e9ff;
-  font-size: 0.82rem;
-  text-align: center;
-}
-
 #energy-hud {
   position: absolute;
   top: max(16px, env(safe-area-inset-top));
@@ -314,10 +298,6 @@ button {
 }
 
 @media (max-width: 430px) {
-  #look-hint {
-    font-size: 0.74rem;
-  }
-
   #energy-hud {
     width: min(145px, 39vw);
   }
