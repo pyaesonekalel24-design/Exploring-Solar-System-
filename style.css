@@ -116,13 +116,20 @@ button {
   line-height: 1.5;
 }
 
+
+/* =========================================================
+   PLANET LABELS
+   ========================================================= */
+
 #planet-label-layer {
   position: absolute;
   z-index: 3;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
 }
 
 #planet-label-layer.ui-hidden {
@@ -134,20 +141,38 @@ button {
   position: absolute;
   left: 0;
   top: 0;
+
   padding: 3px 7px;
+
   border: 1px solid rgba(210, 225, 255, 0.24);
   border-radius: 999px;
-  background: rgba(5, 8, 20, 0.7);
+
+  background: rgba(5, 8, 20, 0.72);
+
   color: #ffffff;
+
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1;
+
   text-shadow: 0 1px 5px #000000;
+
   white-space: nowrap;
+
   transform: translate(-50%, -125%);
-  will-change: transform, left, top, opacity;
+
+  will-change:
+    transform,
+    left,
+    top,
+    opacity;
 }
+
+
+/* =========================================================
+   GAME UI
+   ========================================================= */
 
 #game-ui {
   position: absolute;
@@ -159,8 +184,12 @@ button {
 #helper-ui {
   position: absolute;
   inset: 0;
+
   pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
 }
 
 #game-ui.ui-hidden #helper-ui {
@@ -168,70 +197,172 @@ button {
   visibility: hidden;
 }
 
+
+/* =========================================================
+   ENERGY
+   ========================================================= */
+
 #energy-hud {
   position: absolute;
-  top: max(16px, env(safe-area-inset-top));
-  left: max(16px, env(safe-area-inset-left));
+
+  top:
+    max(
+      16px,
+      env(safe-area-inset-top)
+    );
+
+  left:
+    max(
+      16px,
+      env(safe-area-inset-left)
+    );
+
   display: flex;
   align-items: center;
+
   gap: 8px;
-  width: min(170px, 39vw);
+
+  width:
+    min(
+      170px,
+      39vw
+    );
+
   pointer-events: none;
 }
 
 #energy-bar {
   flex: 1;
+
   height: 14px;
+
   overflow: hidden;
-  border: 1px solid rgba(220, 230, 255, 0.5);
+
+  border:
+    1px solid
+    rgba(
+      220,
+      230,
+      255,
+      0.5
+    );
+
   border-radius: 999px;
-  background: rgba(8, 12, 28, 0.8);
+
+  background:
+    rgba(
+      8,
+      12,
+      28,
+      0.8
+    );
 }
 
 #energy-fill {
   width: 100%;
   height: 100%;
+
   border-radius: inherit;
+
   background: #65e68a;
-  transition: width 0.12s linear, background-color 0.2s ease;
+
+  transition:
+    width 0.12s linear,
+    background-color 0.2s ease;
 }
 
 #energy-percent {
   min-width: 38px;
+
   color: #ffffff;
+
   font-size: 0.85rem;
   font-weight: 800;
+
   text-align: right;
-  text-shadow: 0 1px 5px #000000;
+
+  text-shadow:
+    0 1px 5px #000000;
 }
+
+
+/* =========================================================
+   SPEED PANEL
+   ========================================================= */
 
 #speed-panel {
   position: absolute;
-  top: max(58px, calc(env(safe-area-inset-top) + 48px));
+
+  top:
+    max(
+      58px,
+      calc(
+        env(safe-area-inset-top) + 48px
+      )
+    );
+
   left: 50%;
+
   display: grid;
-  grid-template-columns: 1fr 1fr 1.35fr;
+
+  grid-template-columns:
+    1fr
+    1fr
+    1.35fr;
+
   gap: 8px;
-  width: min(430px, calc(100% - 24px));
-  transform: translateX(-50%);
+
+  width:
+    min(
+      430px,
+      calc(100% - 24px)
+    );
+
+  transform:
+    translateX(-50%);
+
   pointer-events: auto;
 }
 
 .speed-button {
   min-width: 0;
   min-height: 48px;
+
   padding: 6px 8px;
-  border: 1px solid rgba(220, 230, 255, 0.35);
+
+  border:
+    1px solid
+    rgba(
+      220,
+      230,
+      255,
+      0.35
+    );
+
   border-radius: 12px;
-  background: rgba(22, 32, 61, 0.82);
+
+  background:
+    rgba(
+      22,
+      32,
+      61,
+      0.82
+    );
+
   color: #ffffff;
+
   opacity: 0.5;
+
   font-size: 0.78rem;
   font-weight: 900;
   line-height: 1.05;
+
   cursor: pointer;
+
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+
+  -webkit-tap-highlight-color:
+    transparent;
 }
 
 .speed-button span {
@@ -245,85 +376,186 @@ button {
 .speed-button[data-speed="chill"].is-selected {
   border-color: #8bffab;
   background: #16713b;
-  color: #ffffff;
 }
 
 .speed-button[data-speed="sonic"].is-selected {
   border-color: #91c9ff;
   background: #1769b5;
-  color: #ffffff;
 }
 
 .speed-button[data-speed="poop"].is-selected {
   border-color: #ffe48b;
   background: #b96a12;
-  color: #ffffff;
 }
+
+
+/* =========================================================
+   UI TOGGLE
+   ========================================================= */
 
 #ui-toggle {
   position: absolute;
-  top: max(16px, env(safe-area-inset-top));
-  right: max(16px, env(safe-area-inset-right));
+
+  top:
+    max(
+      16px,
+      env(safe-area-inset-top)
+    );
+
+  right:
+    max(
+      16px,
+      env(safe-area-inset-right)
+    );
+
   min-width: 76px;
   min-height: 38px;
+
   padding: 7px 11px;
-  border: 1px solid rgba(220, 230, 255, 0.4);
+
+  border:
+    1px solid
+    rgba(
+      220,
+      230,
+      255,
+      0.4
+    );
+
   border-radius: 999px;
-  background: rgba(14, 20, 42, 0.8);
+
+  background:
+    rgba(
+      14,
+      20,
+      42,
+      0.8
+    );
+
   color: #ffffff;
+
   font-size: 0.72rem;
   font-weight: 900;
   letter-spacing: 0.05em;
+
   cursor: pointer;
+
   pointer-events: auto;
+
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+
+  -webkit-tap-highlight-color:
+    transparent;
 }
 
 #ui-toggle:hover {
-  background: rgba(38, 51, 88, 0.92);
+  background:
+    rgba(
+      38,
+      51,
+      88,
+      0.92
+    );
 }
+
+
+/* =========================================================
+   FLIGHT CONTROLS
+   ALWAYS VISIBLE
+   ========================================================= */
 
 #controls {
   position: absolute;
-  right: max(18px, env(safe-area-inset-right));
-  bottom: max(18px, env(safe-area-inset-bottom));
-  left: max(18px, env(safe-area-inset-left));
+
+  right:
+    max(
+      18px,
+      env(safe-area-inset-right)
+    );
+
+  bottom:
+    max(
+      18px,
+      env(safe-area-inset-bottom)
+    );
+
+  left:
+    max(
+      18px,
+      env(safe-area-inset-left)
+    );
+
   display: flex;
+
   align-items: flex-end;
   justify-content: space-between;
+
   pointer-events: none;
 }
 
 .movement-pad {
   position: relative;
+
   width: 214px;
   height: 174px;
+
   pointer-events: none;
 }
 
 .control-button {
   min-width: 68px;
   min-height: 58px;
+
   padding: 8px 10px;
-  border: 1px solid rgba(222, 231, 255, 0.45);
+
+  border:
+    1px solid
+    rgba(
+      222,
+      231,
+      255,
+      0.45
+    );
+
   border-radius: 14px;
-  background: rgba(22, 32, 61, 0.82);
+
+  background:
+    rgba(
+      22,
+      32,
+      61,
+      0.82
+    );
+
   color: #ffffff;
+
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.03em;
+
   cursor: pointer;
+
   pointer-events: auto;
+
   touch-action: none;
+
   -webkit-user-select: none;
   user-select: none;
-  -webkit-tap-highlight-color: transparent;
+
+  -webkit-tap-highlight-color:
+    transparent;
 }
 
 .control-button:active,
 .control-button.is-pressed {
-  background: rgba(91, 140, 255, 0.95);
+  background:
+    rgba(
+      91,
+      140,
+      255,
+      0.95
+    );
+
   transform: scale(0.96);
 }
 
@@ -353,8 +585,11 @@ button {
 
 .vertical-pad {
   display: flex;
+
   flex-direction: column;
+
   gap: 12px;
+
   pointer-events: none;
 }
 
@@ -363,9 +598,18 @@ button {
   min-height: 64px;
 }
 
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
 @media (max-width: 430px) {
   #energy-hud {
-    width: min(145px, 39vw);
+    width:
+      min(
+        145px,
+        39vw
+      );
   }
 
   #speed-panel {
@@ -374,19 +618,29 @@ button {
 
   .speed-button {
     min-height: 48px;
+
     padding: 5px 4px;
+
     font-size: 0.68rem;
   }
 
   #controls {
     right: 12px;
-    bottom: max(14px, env(safe-area-inset-bottom));
+
+    bottom:
+      max(
+        14px,
+        env(safe-area-inset-bottom)
+      );
+
     left: 12px;
   }
 
   .movement-pad {
     transform: scale(0.88);
-    transform-origin: bottom left;
+
+    transform-origin:
+      bottom left;
   }
 
   .vertical-pad .control-button {
@@ -397,7 +651,9 @@ button {
   #ui-toggle {
     min-width: 70px;
     min-height: 36px;
+
     padding: 6px 9px;
+
     font-size: 0.68rem;
   }
 
