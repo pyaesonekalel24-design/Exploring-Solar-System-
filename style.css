@@ -1,1 +1,243 @@
+:root {
+  color-scheme: dark;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #050711;
+  color: #ffffff;
+}
 
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #050711;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+button {
+  font: inherit;
+}
+
+#game {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: #050711;
+  touch-action: none;
+}
+
+#game canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.screen {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 7, 17, 0.88);
+  text-align: center;
+}
+
+.screen[hidden],
+#game-ui[hidden] {
+  display: none;
+}
+
+.screen > p {
+  color: #d4d9ee;
+}
+
+.start-card {
+  width: min(100%, 520px);
+  padding: 32px 24px;
+  border: 1px solid rgba(170, 190, 255, 0.25);
+  border-radius: 18px;
+  background: rgba(15, 20, 42, 0.92);
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
+}
+
+.start-card h1 {
+  margin: 0 0 12px;
+  font-size: clamp(2rem, 8vw, 3.4rem);
+  letter-spacing: 0.12em;
+}
+
+.start-card > p {
+  margin: 0 0 24px;
+  color: #d4d9ee;
+  font-size: 1.1rem;
+}
+
+#start-button {
+  min-height: 58px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 12px;
+  background: #5b8cff;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#start-button:hover {
+  background: #78a0ff;
+}
+
+#start-button:focus-visible,
+.control-button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.start-card .help-text {
+  max-width: 370px;
+  margin: 20px auto 0;
+  color: #aeb8d5;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+#game-ui {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  pointer-events: none;
+}
+
+#look-hint {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 9px 14px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(210, 220, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(8, 12, 28, 0.62);
+  color: #e4e9ff;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+#controls {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: max(18px, env(safe-area-inset-left));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.movement-pad {
+  position: relative;
+  width: 214px;
+  height: 174px;
+  pointer-events: none;
+}
+
+.control-button {
+  min-width: 68px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border: 1px solid rgba(222, 231, 255, 0.45);
+  border-radius: 14px;
+  background: rgba(22, 32, 61, 0.82);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.control-button:active,
+.control-button.is-pressed {
+  background: rgba(91, 140, 255, 0.95);
+  transform: scale(0.96);
+}
+
+.movement-pad .control-button {
+  position: absolute;
+}
+
+.forward-button {
+  top: 0;
+  left: 73px;
+}
+
+.left-button {
+  top: 58px;
+  left: 0;
+}
+
+.back-button {
+  top: 58px;
+  left: 73px;
+}
+
+.right-button {
+  top: 58px;
+  left: 146px;
+}
+
+.vertical-pad {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.vertical-pad .control-button {
+  min-width: 72px;
+  min-height: 64px;
+}
+
+@media (max-width: 430px) {
+  #look-hint {
+    font-size: 0.74rem;
+  }
+
+  #controls {
+    right: 12px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: 12px;
+  }
+
+  .movement-pad {
+    transform: scale(0.88);
+    transform-origin: bottom left;
+  }
+
+  .vertical-pad .control-button {
+    min-width: 64px;
+    min-height: 58px;
+  }
+}
