@@ -64,37 +64,83 @@ const ENERGY_RECHARGE_RATE = 18;
    SPEED SYSTEM
    =========================================================
 
-   CHILL
-   = old fastest speed.
+   The player does NOT have one fixed movement speed.
 
-   SUPERMAN
-   = exactly 8x CHILL.
+   Speed automatically changes depending on how close
+   the player is to a planet.
 
-   CREATOR
-   = same speed as CHILL,
-     no energy,
-     planet-label teleport.
+   Near a planet:
+   slower and easier to explore.
+
+   Far from planets:
+   faster for crossing huge empty distances.
+
+   CHILL:
+   normal adaptive exploration.
+
+   SUPERMAN:
+   same adaptive behavior, but much faster.
+
+   CREATOR:
+   movement stays available, but teleportation is the
+   main way to travel.
    ========================================================= */
 
-const CHILL_SPEED = 8000;
+const CHILL_MAX_SPEED = 8000;
+
+const SUPERMAN_MAX_SPEED =
+  CHILL_MAX_SPEED * 8;
+
+/*
+  How quickly the player can change speed.
+
+  Higher = reaches the target speed faster.
+  Lower = more smooth / floaty.
+*/
+const SPEED_ACCELERATION = 18000;
+
+/*
+  Distance from a planet's surface at which
+  the player begins getting the full benefit
+  of the slow-speed zone.
+
+  Game units:
+  1 game unit = 1,000 km.
+*/
+const PLANET_SLOW_ZONE = 10000;
+
+/*
+  Minimum useful exploration speed.
+
+  We never let automatic speed become zero.
+*/
+const MIN_ADAPTIVE_SPEED = 120;
 
 const speedModes = {
   chill: {
-    multiplier: 1,
+    maxSpeed: CHILL_MAX_SPEED,
     drainRate: 0
   },
 
   superman: {
-    multiplier: 8,
+    maxSpeed: SUPERMAN_MAX_SPEED,
     drainRate: 4
   },
 
   creator: {
-    multiplier: 1,
+    maxSpeed: CHILL_MAX_SPEED,
     drainRate: 0
   }
 };
 
+/*
+  The actual speed currently being used.
+
+  It starts at the old Chill speed so the first
+  version doesn't suddenly feel extremely slow.
+*/
+let currentMovementSpeed =
+  CHILL_MAX_SPEED;
 
 /* =========================================================
    INPUT
