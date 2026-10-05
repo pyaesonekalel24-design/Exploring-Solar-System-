@@ -33,6 +33,9 @@ let gameStarted = false;
 
 let helperUIVisible = true;
 
+let planetLabelsVisible = true;
+let orbitLinesVisible = true;
+
 let currentSpeedMode = "chill";
 
 
@@ -62,28 +65,6 @@ const ENERGY_RECHARGE_RATE = 18;
 
 /* =========================================================
    SPEED SYSTEM
-   =========================================================
-
-   The player does NOT have one fixed movement speed.
-
-   Speed automatically changes depending on how close
-   the player is to a planet.
-
-   Near a planet:
-   slower and easier to explore.
-
-   Far from planets:
-   faster for crossing huge empty distances.
-
-   CHILL:
-   normal adaptive exploration.
-
-   SUPERMAN:
-   same adaptive behavior, but much faster.
-
-   CREATOR:
-   movement stays available, but teleportation is the
-   main way to travel.
    ========================================================= */
 
 const CHILL_MAX_SPEED = 8000;
@@ -91,29 +72,10 @@ const CHILL_MAX_SPEED = 8000;
 const SUPERMAN_MAX_SPEED =
   CHILL_MAX_SPEED * 8;
 
-/*
-  How quickly the player can change speed.
-
-  Higher = reaches the target speed faster.
-  Lower = more smooth / floaty.
-*/
 const SPEED_ACCELERATION = 18000;
 
-/*
-  Distance from a planet's surface at which
-  the player begins getting the full benefit
-  of the slow-speed zone.
-
-  Game units:
-  1 game unit = 1,000 km.
-*/
 const PLANET_SLOW_ZONE = 10000;
 
-/*
-  Minimum useful exploration speed.
-
-  We never let automatic speed become zero.
-*/
 const MIN_ADAPTIVE_SPEED = 120;
 
 const speedModes = {
@@ -133,14 +95,9 @@ const speedModes = {
   }
 };
 
-/*
-  The actual speed currently being used.
-
-  It starts at the old Chill speed so the first
-  version doesn't suddenly feel extremely slow.
-*/
 let currentMovementSpeed =
   CHILL_MAX_SPEED;
+
 
 /* =========================================================
    INPUT
@@ -230,12 +187,6 @@ const sunOccluders = [];
 
 /* =========================================================
    REAL ASTRONOMICAL SCALE
-   =========================================================
-
-   ONE GAME UNIT = 1,000 KM.
-
-   Do not change this section.
-   This is the current working Solar System scale.
    ========================================================= */
 
 const KM_PER_AU =
@@ -484,10 +435,6 @@ function setSpeedMode(mode) {
     return;
   }
 
-  /*
-    Only Superman is restricted by energy.
-  */
-
   if (
     energy <= 0 &&
     mode === "superman"
@@ -498,6 +445,12 @@ function setSpeedMode(mode) {
   currentSpeedMode =
     mode;
 
+  currentMovementSpeed =
+    Math.min(
+      currentMovementSpeed,
+      speedModes[mode].maxSpeed
+    );
+
   updateSpeedButtons();
 }
 
@@ -505,7 +458,7 @@ function setSpeedMode(mode) {
 function updateCreatorLabelMode() {
   labelLayer.classList.toggle(
     "creator-enabled",
-    helperUIVisible &&
+    planetLabelsVisible &&
       currentSpeedMode ===
         "creator"
   );
@@ -547,6 +500,169 @@ function updateEnergyDisplay() {
     $("energy-fill").style.backgroundColor =
       "#65e68a";
   }
+}
+
+
+/* =========================================================
+   ADAPTIVE MOVEMENT SPEED
+   ========================================================= */
+
+function getAdaptiveSpeed() {
+  let nearestSurfaceDistance =
+    Infinity;
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    planetData.planet.getWorldPosition(
+      tempWorld
+    );
+
+    const distanceToCenter =
+      camera.position.distanceTo(
+        tempWorld
+      );
+
+    const distanceToSurface =
+      Math.max(
+        0,
+        distanceToCenter -
+          planetData.radius
+      );
+
+    if (
+      distanceToSurface <
+      nearestSurfaceDistance
+    ) {
+      nearestSurfaceDistance =
+        distanceToSurface;
+    }
+  }
+
+  const distanceFactor =
+    THREE.MathUtils.clamp(
+      nearestSurfaceDistance /
+        PLANET_SLOW_ZONE,
+      0,
+      1
+    );
+
+  const smoothFactor =
+    distanceFactor *
+    distanceFactor *
+    (3 - 2 * distanceFactor);
+
+  const mode =
+    speedModes[
+      currentSpeedMode
+    ] ||
+    speedModes.chill;
+
+  return (
+    MIN_ADAPTIVE_SPEED +
+    (
+      mode.maxSpeed -
+      MIN_ADAPTIVE_SPEED
+    ) *
+    smoothFactor
+  );
+}
+
+
+function updateMovementSpeed(
+  deltaTime
+) {
+  const targetSpeed =
+    getAdaptiveSpeed();
+
+  const difference =
+    targetSpeed -
+    currentMovementSpeed;
+
+  const maximumChange =
+    SPEED_ACCELERATION *
+    deltaTime;
+
+  if (
+    Math.abs(difference) <=
+    maximumChange
+  ) {
+    currentMovementSpeed =
+      targetSpeed;
+
+    return;
+  }
+
+  currentMovementSpeed +=
+    Math.sign(difference) *
+    maximumChange;
+}
+
+
+/* =========================================================
+   VISUAL TOGGLES
+   ========================================================= */
+
+function updateVisualToggleButtons() {
+  const labelButton =
+    $("labels-toggle");
+
+  const orbitButton =
+    $("orbits-toggle");
+
+  if (labelButton) {
+    labelButton.textContent =
+      planetLabelsVisible
+        ? "NAMES ON"
+        : "NAMES OFF";
+
+    labelButton.setAttribute(
+      "aria-pressed",
+      String(planetLabelsVisible)
+    );
+  }
+
+  if (orbitButton) {
+    orbitButton.textContent =
+      orbitLinesVisible
+        ? "ORBITS ON"
+        : "ORBITS OFF";
+
+    orbitButton.setAttribute(
+      "aria-pressed",
+      String(orbitLinesVisible)
+    );
+  }
+}
+
+
+function setPlanetLabelsVisible(
+  visible
+) {
+  planetLabelsVisible =
+    visible;
+
+  updateVisualToggleButtons();
+  updateCreatorLabelMode();
+}
+
+
+function setOrbitLinesVisible(
+  visible
+) {
+  orbitLinesVisible =
+    visible;
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    planetData.orbitLine.visible =
+      orbitLinesVisible;
+  }
+
+  updateVisualToggleButtons();
 }
 
 
@@ -961,13 +1077,6 @@ function createLabel(
    ========================================================= */
 
 function createPlanet(data) {
-  /*
-    KEEP THE EXISTING SCALE.
-
-    No distance compression.
-    No size compression.
-  */
-
   const semiMajorAxis =
     data.semiMajorAxisAU *
     GAME_UNITS_PER_AU;
@@ -976,10 +1085,6 @@ function createPlanet(data) {
     data.radiusKm *
     GAME_UNITS_PER_KM;
 
-
-  /* =======================================================
-     ORBIT HIERARCHY
-     ======================================================= */
 
   const ascendingNodeGroup =
     new THREE.Group();
@@ -1018,10 +1123,6 @@ function createPlanet(data) {
   );
 
 
-  /* =======================================================
-     ORBIT LINE
-     ======================================================= */
-
   const orbitLine =
     createOrbitLine(
       semiMajorAxis,
@@ -1029,14 +1130,13 @@ function createPlanet(data) {
       data.orbitColor
     );
 
+  orbitLine.visible =
+    orbitLinesVisible;
+
   periapsisGroup.add(
     orbitLine
   );
 
-
-  /* =======================================================
-     PLANET BODY
-     ======================================================= */
 
   const orbitalBodyGroup =
     new THREE.Group();
@@ -1057,11 +1157,6 @@ function createPlanet(data) {
     axialTiltGroup
   );
 
-
-  /*
-    MeshStandardMaterial + hemisphere light
-    keeps planets visibly round and shaded.
-  */
 
   const planet =
     new THREE.Mesh(
@@ -1091,10 +1186,6 @@ function createPlanet(data) {
     planet
   );
 
-
-  /* =======================================================
-     SATURN RINGS
-     ======================================================= */
 
   if (
     data.hasRings
@@ -1131,10 +1222,6 @@ function createPlanet(data) {
     );
   }
 
-
-  /* =======================================================
-     EARTH MOON
-     ======================================================= */
 
   if (
     data.hasMoon
@@ -1176,10 +1263,6 @@ function createPlanet(data) {
   }
 
 
-  /* =======================================================
-     INITIAL POSITION
-     ======================================================= */
-
   const startingMeanAnomaly =
     THREE.MathUtils.degToRad(
       data.startMeanAnomalyDegrees
@@ -1200,10 +1283,6 @@ function createPlanet(data) {
   );
 
 
-  /* =======================================================
-     REAL ORBITAL MOTION
-     ======================================================= */
-
   const orbitalPeriodSeconds =
     data.orbitalPeriodDays *
     SECONDS_PER_DAY;
@@ -1215,10 +1294,6 @@ function createPlanet(data) {
     ) *
     SIMULATION_TIME_MULTIPLIER;
 
-
-  /* =======================================================
-     REAL BODY SPIN
-     ======================================================= */
 
   const rotationPeriodSeconds =
     Math.abs(
@@ -1296,10 +1371,6 @@ function createSolarSystem() {
     );
 
 
-  /* =======================================================
-     CAMERA
-     ======================================================= */
-
   camera =
     new THREE.PerspectiveCamera(
       70,
@@ -1325,17 +1396,6 @@ function createSolarSystem() {
     camera
   );
 
-
-  /* =======================================================
-     LIGHTING
-     =======================================================
-
-     This is the key fix for the black-looking planets.
-
-     It still allows the Sun to provide strong light,
-     while keeping enough fill that distant planets
-     remain visible as 3D spheres.
-     ======================================================= */
 
   scene.add(
     new THREE.HemisphereLight(
@@ -1366,10 +1426,6 @@ function createSolarSystem() {
   );
 
 
-  /* =======================================================
-     PHYSICAL SUN
-     ======================================================= */
-
   const sun =
     new THREE.Mesh(
       new THREE.SphereGeometry(
@@ -1392,10 +1448,6 @@ function createSolarSystem() {
     sun
   );
 
-
-  /* =======================================================
-     SUN GLOW
-     ======================================================= */
 
   const glow =
     new THREE.Mesh(
@@ -1435,10 +1487,6 @@ function createSolarSystem() {
   createStarField();
 
 
-  /* =======================================================
-     PLANETS
-     ======================================================= */
-
   for (
     const planetData of
       planetDataList
@@ -1448,10 +1496,6 @@ function createSolarSystem() {
     );
   }
 
-
-  /* =======================================================
-     RENDERER
-     ======================================================= */
 
   renderer =
     new THREE.WebGLRenderer({
@@ -1500,10 +1544,6 @@ function createSolarSystem() {
   );
 
 
-  /* =======================================================
-     START NEAR EARTH
-     ======================================================= */
-
   const earthData =
     solarPlanets.find(
       (planet) =>
@@ -1544,6 +1584,8 @@ function createSolarSystem() {
   setupControls();
 
   updateSpeedButtons();
+
+  updateVisualToggleButtons();
 
   updateEnergyDisplay();
 
@@ -1719,11 +1761,6 @@ function updateMovement(
   }
 
 
-  /*
-    Superman becomes Chill
-    automatically at zero energy.
-  */
-
   if (
     energy <= 0 &&
     currentSpeedMode ===
@@ -1737,17 +1774,13 @@ function updateMovement(
 
   movement.normalize();
 
-
-  const speed =
-    CHILL_SPEED *
-    speedModes[
-      currentSpeedMode
-    ].multiplier;
-
+  updateMovementSpeed(
+    deltaTime
+  );
 
   camera.position.addScaledVector(
     movement,
-    speed *
+    currentMovementSpeed *
       deltaTime
   );
 
@@ -1869,10 +1902,6 @@ function getSunVisibilityState() {
     };
   }
 
-
-  /*
-    Planet can physically block Sun.
-  */
 
   raycaster.set(
     camera.position,
@@ -2035,10 +2064,6 @@ function updateSunAndEnergy(
     }
   }
 
-
-  /*
-    Energy only works in Superman.
-  */
 
   if (
     currentSpeedMode ===
@@ -2210,13 +2235,6 @@ function teleportToPlanet(
   }
 
 
-  /*
-    Spawn outside the planet.
-
-    Bigger planets naturally get
-    a bigger landing distance.
-  */
-
   const standOff =
     Math.max(
       planetData.radius *
@@ -2235,10 +2253,6 @@ function teleportToPlanet(
       standOff
     );
 
-
-  /*
-    Look directly at the planet.
-  */
 
   tempDirection
     .subVectors(
@@ -2293,9 +2307,8 @@ function updateLabels() {
   ) {
 
     if (
-      !helperUIVisible
+      !planetLabelsVisible
     ) {
-
       planetData.label.style.opacity =
         "0";
 
@@ -2377,49 +2390,20 @@ function setHelperVisibility(
   helperUIVisible =
     visible;
 
-
   gameUI.classList.toggle(
     "ui-hidden",
     !visible
   );
-
-
-  labelLayer.classList.toggle(
-    "ui-hidden",
-    !visible
-  );
-
 
   uiToggle.textContent =
     visible
       ? "UI OFF"
       : "UI ON";
 
-
   uiToggle.setAttribute(
     "aria-pressed",
     String(!visible)
   );
-
-
-  for (
-    const planetData of
-      solarPlanets
-  ) {
-
-    planetData.orbitLine.visible =
-      visible;
-
-
-    if (
-      !visible
-    ) {
-
-      planetData.label.style.opacity =
-        "0";
-    }
-  }
-
 
   updateCreatorLabelMode();
 }
@@ -2532,10 +2516,6 @@ function setupControls() {
     );
 
 
-  /* =======================================================
-     SPEED BUTTONS
-     ======================================================= */
-
   for (
     const button of
       speedButtons
@@ -2552,10 +2532,6 @@ function setupControls() {
   }
 
 
-  /* =======================================================
-     UI TOGGLE
-     ======================================================= */
-
   uiToggle.addEventListener(
     "click",
     () => {
@@ -2566,9 +2542,30 @@ function setupControls() {
   );
 
 
-  /* =======================================================
-     FLIGHT BUTTONS
-     ======================================================= */
+  const labelsToggle =
+    $("labels-toggle");
+
+  const orbitsToggle =
+    $("orbits-toggle");
+
+  labelsToggle.addEventListener(
+    "click",
+    () => {
+      setPlanetLabelsVisible(
+        !planetLabelsVisible
+      );
+    }
+  );
+
+  orbitsToggle.addEventListener(
+    "click",
+    () => {
+      setOrbitLinesVisible(
+        !orbitLinesVisible
+      );
+    }
+  );
+
 
   for (
     const button of
@@ -2655,19 +2652,6 @@ function setupControls() {
     );
   }
 
-
-  /* =======================================================
-     TOUCH LOOK
-     =======================================================
-
-     BOTH axes stay inverted:
-
-     swipe RIGHT -> look LEFT
-     swipe LEFT  -> look RIGHT
-
-     swipe UP   -> look DOWN
-     swipe DOWN -> look UP
-     ======================================================= */
 
   canvas.addEventListener(
     "pointerdown",
@@ -2790,10 +2774,6 @@ function setupControls() {
   );
 
 
-  /* =======================================================
-     KEYBOARD
-     ======================================================= */
-
   window.addEventListener(
     "keydown",
     (event) => {
@@ -2834,10 +2814,6 @@ function setupControls() {
     }
   );
 
-
-  /* =======================================================
-     WINDOW BLUR
-     ======================================================= */
 
   window.addEventListener(
     "blur",
