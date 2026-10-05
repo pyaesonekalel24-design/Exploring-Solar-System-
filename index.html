@@ -15,7 +15,7 @@
   <main id="game">
 
     <div id="loading-screen" class="screen">
-      <p>Loading Solar System…</p>
+      <p>Loading…</p>
     </div>
 
     <section
@@ -27,19 +27,12 @@
       <div class="start-card">
         <h1 id="game-title">SOLAR SYSTEM</h1>
 
-        <p>Fly through the Solar System</p>
-
         <button
           id="start-button"
           type="button"
         >
           START FLYING
         </button>
-
-        <p class="help-text">
-          Drag to look around. Use the on-screen buttons to fly.
-          On desktop, use WASD, Space, and Shift.
-        </p>
       </div>
     </section>
 
@@ -49,10 +42,6 @@
 
         <p id="error-message">
           The 3D scene could not be loaded.
-        </p>
-
-        <p class="help-text">
-          Try opening this page in an up-to-date browser with WebGL enabled.
         </p>
       </div>
     </div>
@@ -81,14 +70,12 @@
             <div id="energy-fill"></div>
           </div>
 
-          <span id="energy-percent">
-            100%
-          </span>
+          <span id="energy-percent">100%</span>
         </div>
 
         <div
           id="speed-panel"
-          aria-label="Flying speed"
+          aria-label="Flying mode"
         >
           <button
             class="speed-button is-selected"
@@ -115,6 +102,29 @@
             aria-pressed="false"
           >
             CREATOR
+          </button>
+        </div>
+
+        <div
+          id="visual-panel"
+          aria-label="Visual settings"
+        >
+          <button
+            class="visual-button"
+            id="labels-toggle"
+            type="button"
+            aria-pressed="true"
+          >
+            NAMES ON
+          </button>
+
+          <button
+            class="visual-button"
+            id="orbits-toggle"
+            type="button"
+            aria-pressed="true"
+          >
+            ORBITS ON
           </button>
         </div>
 
