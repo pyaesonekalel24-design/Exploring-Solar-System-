@@ -337,6 +337,36 @@ const GAME_UNITS_PER_AU =
 
 
 /* =========================================================
+   PLAYER / PLANET VIEW SCALE
+   ========================================================= */
+
+/*
+   The Solar System itself remains at the existing scale.
+
+   These values control how close the camera is allowed
+   to begin/teleport relative to a planet.
+
+   The important idea is that the camera should get much
+   closer to the actual planetary surface instead of
+   sitting several planet radii away.
+
+   This creates the intended "tiny human looking at a
+   gigantic planet" feeling without changing orbital
+   distances.
+*/
+
+const PLANET_SURFACE_CLEARANCE =
+  0.08;
+
+const DEFAULT_PLANET_VIEW_DISTANCE =
+  0.35;
+
+const START_EARTH_VIEW_DISTANCE =
+  EARTH_GAME_RADIUS +
+  PLANET_SURFACE_CLEARANCE;
+
+
+/* =========================================================
    REAL-TIME ORBITS
    ========================================================= */
 
@@ -1451,7 +1481,7 @@ function createSolarSystem() {
       window.innerWidth /
         window.innerHeight,
 
-      0.05,
+      0.005,
 
       20_000_000
     );
@@ -1636,7 +1666,7 @@ function createSolarSystem() {
     );
 
     camera.position.z +=
-      140;
+      START_EARTH_VIEW_DISTANCE;
 
   } else {
 
@@ -2308,12 +2338,22 @@ function teleportToPlanet(
   }
 
 
-  const standOff =
-    Math.max(
-      planetData.radius *
-        3.5,
+  /*
+     Much closer planet viewing distance.
 
-      30
+     Instead of 3.5 planet radii away, the camera
+     now sits only slightly above the surface.
+
+     This is what makes planets feel enormous
+     from the player's point of view.
+  */
+
+  const standOff =
+    planetData.radius +
+    Math.max(
+      PLANET_SURFACE_CLEARANCE,
+      planetData.radius *
+        0.04
     );
 
 
