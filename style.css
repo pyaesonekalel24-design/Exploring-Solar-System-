@@ -45,6 +45,11 @@ button {
   touch-action: none;
 }
 
+
+/* =========================================================
+   SCREENS
+   ========================================================= */
+
 .screen {
   position: absolute;
   z-index: 10;
@@ -106,9 +111,10 @@ button {
 .speed-button:focus-visible,
 .visual-button:focus-visible,
 #ui-toggle:focus-visible {
-  outline: 3px solid #ffffff;
+  outline: 2px solid rgba(255, 255, 255, 0.9);
   outline-offset: 3px;
 }
+
 
 /* =========================================================
    PLANET LABELS
@@ -126,27 +132,62 @@ button {
   position: absolute;
   left: 0;
   top: 0;
-  padding: 3px 7px;
-  border: 1px solid rgba(210, 225, 255, 0.24);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+
+  padding: 5px 9px;
+
+  border: 1px solid rgba(210, 225, 255, 0.22);
   border-radius: 999px;
-  background: rgba(5, 8, 20, 0.72);
+
+  background: rgba(5, 8, 20, 0.52);
+
   color: #ffffff;
-  font-size: 11px;
+
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.09em;
   line-height: 1;
+
   text-shadow: 0 1px 5px #000000;
+
   white-space: nowrap;
+
   transform: translate(-50%, -125%);
+
   will-change: transform, left, top, opacity;
+
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.planet-label-name {
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.planet-label-distance {
+  color: rgba(220, 230, 255, 0.72);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
 #planet-label-layer.creator-enabled .planet-label {
   pointer-events: auto;
   cursor: pointer;
-  border-color: rgba(205, 158, 255, 0.75);
-  background: rgba(38, 18, 66, 0.82);
+
+  border-color: rgba(205, 158, 255, 0.62);
+  background: rgba(38, 18, 66, 0.68);
 }
+
+#planet-label-layer.cinematic-hidden {
+  visibility: hidden;
+}
+
 
 /* =========================================================
    GAME UI
@@ -163,13 +204,21 @@ button {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
+
+  transition:
+    opacity 0.22s ease,
+    visibility 0.22s ease;
 }
 
-#game-ui.ui-hidden #helper-ui {
+#game-ui.cinematic-mode #helper-ui {
   opacity: 0;
   visibility: hidden;
 }
+
+#game-ui.cinematic-mode #planet-label-layer {
+  visibility: hidden;
+}
+
 
 /* =========================================================
    ENERGY
@@ -177,40 +226,71 @@ button {
 
 #energy-hud {
   position: absolute;
-  top: max(16px, env(safe-area-inset-top));
-  left: max(16px, env(safe-area-inset-left));
+
+  top: max(20px, env(safe-area-inset-top));
+  left: max(20px, env(safe-area-inset-left));
+
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: min(170px, 39vw);
+  gap: 9px;
+
+  width: min(250px, 42vw);
+
   pointer-events: none;
+
+  opacity: 0;
+
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
+
+#game-ui.superman-mode #energy-hud {
+  opacity: 0.62;
 }
 
 #energy-bar {
   flex: 1;
-  height: 14px;
+
+  height: 5px;
+
   overflow: hidden;
-  border: 1px solid rgba(220, 230, 255, 0.5);
+
+  border: 1px solid rgba(190, 220, 200, 0.22);
   border-radius: 999px;
-  background: rgba(8, 12, 28, 0.8);
+
+  background: rgba(8, 12, 20, 0.38);
+
+  box-shadow:
+    0 0 12px rgba(60, 220, 110, 0.08);
 }
 
 #energy-fill {
   width: 100%;
   height: 100%;
+
   border-radius: inherit;
+
   background: #65e68a;
-  transition: width 0.12s linear, background-color 0.2s ease;
+
+  transition:
+    width 0.12s linear,
+    background-color 0.2s ease;
 }
 
 #energy-percent {
-  min-width: 38px;
-  color: #ffffff;
-  font-size: 0.85rem;
+  min-width: 32px;
+
+  color: rgba(235, 255, 240, 0.8);
+
+  font-size: 0.67rem;
   font-weight: 800;
+
   text-align: right;
+
   text-shadow: 0 1px 5px #000000;
 }
+
 
 /* =========================================================
    SPEED PANEL
@@ -218,169 +298,436 @@ button {
 
 #speed-panel {
   position: absolute;
-  top: max(58px, calc(env(safe-area-inset-top) + 48px));
+
+  top: max(20px, env(safe-area-inset-top));
   left: 50%;
+
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  width: min(430px, calc(100% - 24px));
+  gap: 6px;
+
+  width: min(390px, calc(100% - 120px));
+
   transform: translateX(-50%);
+
   pointer-events: auto;
 }
 
 .speed-button {
   min-width: 0;
-  min-height: 48px;
-  padding: 6px 8px;
-  border: 1px solid rgba(220, 230, 255, 0.35);
-  border-radius: 12px;
-  background: rgba(22, 32, 61, 0.82);
-  color: #ffffff;
-  opacity: 0.5;
-  font-size: 0.78rem;
-  font-weight: 900;
-  line-height: 1.05;
+  min-height: 38px;
+
+  padding: 5px 9px;
+
+  border: 1px solid rgba(220, 230, 255, 0.20);
+  border-radius: 999px;
+
+  background: rgba(12, 17, 30, 0.34);
+
+  color: rgba(255, 255, 255, 0.74);
+
+  opacity: 0.48;
+
+  font-size: 0.67rem;
+  font-weight: 800;
+
+  letter-spacing: 0.08em;
+  line-height: 1;
+
   cursor: pointer;
+
   touch-action: manipulation;
+
   -webkit-tap-highlight-color: transparent;
+
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  transition:
+    opacity 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.12s ease;
+}
+
+.speed-button:hover {
+  opacity: 0.75;
+}
+
+.speed-button:active {
+  transform: scale(0.97);
 }
 
 .speed-button.is-selected {
-  opacity: 1;
+  opacity: 0.86;
 }
 
 .speed-button[data-speed="chill"].is-selected {
-  border-color: #8bffab;
-  background: #16713b;
+  border-color: rgba(139, 255, 171, 0.48);
+  background: rgba(35, 105, 62, 0.42);
 }
 
 .speed-button[data-speed="superman"].is-selected {
-  border-color: #91c9ff;
-  background: #1769b5;
+  border-color: rgba(145, 201, 255, 0.50);
+  background: rgba(33, 91, 145, 0.42);
 }
 
 .speed-button[data-speed="creator"].is-selected {
-  border-color: #d9a7ff;
-  background: #713aa3;
+  border-color: rgba(217, 167, 255, 0.52);
+  background: rgba(92, 51, 133, 0.42);
 }
 
+
 /* =========================================================
-   VISUAL TOGGLES
+   UI OPTIONS PANEL
    ========================================================= */
 
 #visual-panel {
   position: absolute;
-  top: max(114px, calc(env(safe-area-inset-top) + 104px));
-  left: 50%;
+
+  top: max(68px, calc(env(safe-area-inset-top) + 54px));
+  right: max(20px, env(safe-area-inset-right));
+
   display: flex;
-  gap: 8px;
-  transform: translateX(-50%);
+  flex-direction: column;
+  gap: 4px;
+
+  width: 158px;
+
+  padding: 9px;
+
+  border: 1px solid rgba(220, 230, 255, 0.16);
+  border-radius: 14px;
+
+  background: rgba(7, 11, 22, 0.54);
+
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.16);
+
   pointer-events: auto;
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#visual-panel[hidden] {
+  display: none;
+}
+
+.visual-panel-title {
+  padding: 3px 6px 7px;
+
+  color: rgba(220, 230, 255, 0.42);
+
+  font-size: 0.56rem;
+  font-weight: 800;
+
+  letter-spacing: 0.15em;
 }
 
 .visual-button {
-  min-width: 108px;
-  min-height: 38px;
-  padding: 6px 10px;
-  border: 1px solid rgba(220, 230, 255, 0.3);
-  border-radius: 999px;
-  background: rgba(14, 20, 42, 0.82);
-  color: #ffffff;
-  opacity: 0.55;
-  font-size: 0.68rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  min-height: 34px;
+
+  padding: 5px 8px;
+
+  border: 1px solid transparent;
+  border-radius: 8px;
+
+  background: transparent;
+
+  color: rgba(255, 255, 255, 0.58);
+
+  font-size: 0.61rem;
+  font-weight: 800;
+
+  letter-spacing: 0.08em;
+
   cursor: pointer;
+
   touch-action: manipulation;
+
   -webkit-tap-highlight-color: transparent;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.visual-button:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .visual-button[aria-pressed="true"] {
-  opacity: 1;
+  color: rgba(255, 255, 255, 0.88);
 }
 
-#labels-toggle[aria-pressed="true"] {
-  border-color: rgba(139, 255, 171, 0.75);
+.visual-button[aria-pressed="true"] .toggle-state {
+  color: rgba(145, 201, 255, 0.85);
 }
 
-#orbits-toggle[aria-pressed="true"] {
-  border-color: rgba(145, 201, 255, 0.75);
+.toggle-state {
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 0.55rem;
 }
+
+.cinematic-button {
+  margin-top: 4px;
+
+  border-top: 1px solid rgba(220, 230, 255, 0.10);
+  border-radius: 0 0 8px 8px;
+
+  padding-top: 9px;
+}
+
+.cinematic-button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.cinematic-button[aria-pressed="true"] .toggle-state {
+  color: rgba(255, 255, 255, 0.82);
+}
+
 
 /* =========================================================
-   UI TOGGLE
+   UI BUTTON
    ========================================================= */
 
 #ui-toggle {
   position: absolute;
-  top: max(16px, env(safe-area-inset-top));
-  right: max(16px, env(safe-area-inset-right));
-  min-width: 76px;
-  min-height: 38px;
-  padding: 7px 11px;
-  border: 1px solid rgba(220, 230, 255, 0.4);
+
+  top: max(20px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
+
+  min-width: 42px;
+  min-height: 34px;
+
+  padding: 6px 9px;
+
+  border: 1px solid rgba(220, 230, 255, 0.22);
   border-radius: 999px;
-  background: rgba(14, 20, 42, 0.8);
-  color: #ffffff;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.05em;
+
+  background: rgba(9, 13, 25, 0.32);
+
+  color: rgba(255, 255, 255, 0.62);
+
+  font-size: 0.62rem;
+  font-weight: 800;
+
+  letter-spacing: 0.10em;
+
   cursor: pointer;
+
   pointer-events: auto;
+
   touch-action: manipulation;
+
   -webkit-tap-highlight-color: transparent;
+
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
 }
 
-#ui-toggle:hover {
-  background: rgba(38, 51, 88, 0.92);
+#ui-toggle:hover,
+#ui-toggle[aria-expanded="true"] {
+  background: rgba(18, 25, 43, 0.58);
+  border-color: rgba(220, 230, 255, 0.36);
+  color: rgba(255, 255, 255, 0.88);
 }
+
 
 /* =========================================================
-   FLIGHT CONTROLS ALWAYS VISIBLE
+   FLIGHT CONTROLS
+   ALWAYS VISIBLE
    ========================================================= */
 
 #controls {
   position: absolute;
-  right: max(18px, env(safe-area-inset-right));
-  bottom: max(18px, env(safe-area-inset-bottom));
-  left: max(18px, env(safe-area-inset-left));
+
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: max(20px, env(safe-area-inset-left));
+
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
+
   pointer-events: none;
 }
 
 .movement-pad {
   position: relative;
-  width: 214px;
-  height: 174px;
+
+  width: 194px;
+  height: 154px;
+
   pointer-events: none;
 }
 
+
+/* =========================================================
+   ARROW BUTTONS
+   ========================================================= */
+
 .control-button {
-  min-width: 68px;
-  min-height: 58px;
-  padding: 8px 10px;
-  border: 1px solid rgba(222, 231, 255, 0.45);
+  display: grid;
+  place-items: center;
+
+  width: 52px;
+  height: 52px;
+
+  min-width: 52px;
+  min-height: 52px;
+
+  padding: 0;
+
+  border: 1px solid rgba(225, 232, 255, 0.20);
   border-radius: 14px;
-  background: rgba(22, 32, 61, 0.82);
-  color: #ffffff;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
+
+  background: rgba(10, 15, 27, 0.30);
+
+  color: rgba(235, 240, 255, 0.66);
+
   cursor: pointer;
+
   pointer-events: auto;
+
   touch-action: none;
+
   -webkit-user-select: none;
   user-select: none;
+
   -webkit-tap-highlight-color: transparent;
+
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  box-shadow:
+    0 5px 18px rgba(0, 0, 0, 0.10);
+
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.10s ease;
+}
+
+.control-button:hover {
+  border-color: rgba(225, 232, 255, 0.32);
+  background: rgba(20, 27, 45, 0.42);
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .control-button:active,
 .control-button.is-pressed {
-  background: rgba(91, 140, 255, 0.95);
-  transform: scale(0.96);
+  border-color: rgba(255, 255, 255, 0.38);
+
+  background: rgba(100, 120, 155, 0.40);
+
+  color: rgba(255, 255, 255, 0.96);
+
+  transform: scale(0.93);
 }
+
+
+/* =========================================================
+   ARROW ICONS
+   ========================================================= */
+
+.arrow-icon {
+  position: relative;
+
+  display: block;
+
+  width: 15px;
+  height: 15px;
+
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.arrow-up {
+  transform: rotate(-45deg);
+}
+
+.arrow-down {
+  transform: rotate(135deg);
+}
+
+.arrow-left {
+  transform: rotate(-135deg);
+}
+
+.arrow-right {
+  transform: rotate(45deg);
+}
+
+
+/* Double arrows for vertical movement */
+
+.arrow-double-up,
+.arrow-double-down {
+  width: 16px;
+  height: 16px;
+
+  border: 0;
+
+  transform: none;
+}
+
+.arrow-double-up::before,
+.arrow-double-up::after,
+.arrow-double-down::before,
+.arrow-double-down::after {
+  content: "";
+
+  position: absolute;
+
+  left: 50%;
+
+  width: 10px;
+  height: 10px;
+
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.arrow-double-up::before {
+  top: 2px;
+  transform: translateX(-50%) rotate(-45deg);
+}
+
+.arrow-double-up::after {
+  top: 9px;
+  transform: translateX(-50%) rotate(-45deg);
+}
+
+.arrow-double-down::before {
+  top: 0;
+  transform: translateX(-50%) rotate(135deg);
+}
+
+.arrow-double-down::after {
+  top: 7px;
+  transform: translateX(-50%) rotate(135deg);
+}
+
+
+/* =========================================================
+   D-PAD POSITION
+   ========================================================= */
 
 .movement-pad .control-button {
   position: absolute;
@@ -388,65 +735,83 @@ button {
 
 .forward-button {
   top: 0;
-  left: 73px;
+  left: 71px;
 }
 
 .left-button {
-  top: 58px;
-  left: 0;
+  top: 51px;
+  left: 10px;
 }
 
 .back-button {
-  top: 58px;
-  left: 73px;
+  top: 51px;
+  left: 71px;
 }
 
 .right-button {
-  top: 58px;
-  left: 146px;
+  top: 51px;
+  left: 132px;
 }
+
+
+/* =========================================================
+   VERTICAL PAD
+   ========================================================= */
 
 .vertical-pad {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
+
   pointer-events: none;
 }
 
 .vertical-pad .control-button {
-  min-width: 72px;
-  min-height: 64px;
+  width: 52px;
+  height: 52px;
+
+  min-width: 52px;
+  min-height: 52px;
 }
+
+
+/* =========================================================
+   CINEMATIC MODE
+   ========================================================= */
+
+#game-ui.cinematic-mode #speed-panel,
+#game-ui.cinematic-mode #energy-hud {
+  pointer-events: none;
+}
+
 
 /* =========================================================
    MOBILE
    ========================================================= */
 
-@media (max-width: 430px) {
+@media (max-width: 600px) {
+
   #energy-hud {
-    width: min(145px, 39vw);
+    width: min(210px, 43vw);
   }
 
   #speed-panel {
-    gap: 6px;
+    top: max(68px, calc(env(safe-area-inset-top) + 54px));
+
+    width: min(330px, calc(100% - 110px));
+
+    gap: 5px;
   }
 
   .speed-button {
-    min-height: 46px;
-    padding: 5px 4px;
-    font-size: 0.68rem;
+    min-height: 34px;
+    padding: 5px 5px;
+    font-size: 0.59rem;
   }
 
   #visual-panel {
-    top: max(112px, calc(env(safe-area-inset-top) + 102px));
-    gap: 6px;
-  }
-
-  .visual-button {
-    min-width: 94px;
-    min-height: 36px;
-    padding: 5px 7px;
-    font-size: 0.62rem;
+    top: max(112px, calc(env(safe-area-inset-top) + 98px));
+    right: max(14px, env(safe-area-inset-right));
   }
 
   #controls {
@@ -456,23 +821,83 @@ button {
   }
 
   .movement-pad {
-    transform: scale(0.88);
+    transform: scale(0.90);
     transform-origin: bottom left;
   }
 
-  .vertical-pad .control-button {
-    min-width: 64px;
-    min-height: 58px;
+  .vertical-pad {
+    transform: scale(0.90);
+    transform-origin: bottom right;
   }
 
   #ui-toggle {
-    min-width: 70px;
-    min-height: 36px;
-    padding: 6px 9px;
-    font-size: 0.68rem;
+    top: max(14px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
   }
 
   .planet-label {
-    font-size: 10px;
+    padding: 4px 7px;
+  }
+
+  .planet-label-name {
+    font-size: 9px;
+  }
+
+  .planet-label-distance {
+    font-size: 7px;
+  }
+}
+
+
+@media (max-width: 430px) {
+
+  #energy-hud {
+    width: min(170px, 42vw);
+  }
+
+  #speed-panel {
+    top: max(64px, calc(env(safe-area-inset-top) + 52px));
+    width: min(300px, calc(100% - 95px));
+  }
+
+  .speed-button {
+    min-height: 32px;
+    font-size: 0.54rem;
+  }
+
+  #visual-panel {
+    width: 148px;
+  }
+
+  .movement-pad {
+    transform: scale(0.82);
+  }
+
+  .vertical-pad {
+    transform: scale(0.82);
+  }
+
+  .control-button {
+    width: 50px;
+    height: 50px;
+
+    min-width: 50px;
+    min-height: 50px;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  #helper-ui,
+  #energy-hud,
+  .speed-button,
+  .control-button,
+  #ui-toggle {
+    transition: none;
   }
 }
