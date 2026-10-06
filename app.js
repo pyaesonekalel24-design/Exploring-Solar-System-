@@ -21,9 +21,12 @@ let scene;
 let camera;
 let renderer;
 
+let solarRoot = null;
+
 let solarPlanets = [];
 
 let moonPivot = null;
+let moonData = null;
 
 let stars = null;
 
@@ -37,6 +40,61 @@ let planetLabelsVisible = true;
 let orbitLinesVisible = true;
 
 let currentSpeedMode = "chill";
+
+
+/* =========================================================
+   HUMAN-SCALE / FLOATING-ORIGIN SYSTEM
+   ========================================================= */
+
+/*
+   Astronomical distances stay exactly the same.
+
+   1 game unit = 1000 km.
+
+   A human eye height of about 1.7 metres is therefore:
+
+   0.0017 km * 0.001 game units/km
+   = 0.0000017 game units.
+*/
+
+const PLAYER_EYE_HEIGHT =
+  0.0017 *
+  GAME_UNITS_PER_KM;
+
+
+/*
+   A tiny extra distance keeps the camera just outside
+   the surface instead of mathematically inside it.
+
+   About 6.8 metres.
+*/
+
+const PLANET_SURFACE_OFFSET =
+  PLAYER_EYE_HEIGHT * 4;
+
+
+/*
+   The player's real position in Solar-System coordinates.
+
+   The camera itself stays near (0, 0, 0).
+*/
+
+const playerWorldPosition =
+  new THREE.Vector3();
+
+
+/*
+   This group contains the whole Solar System.
+
+   Every frame it is shifted so the player is at the
+   rendering origin.
+
+   This is the floating-origin trick that lets us keep
+   astronomical distances while still rendering
+   human-scale distances near planets.
+*/
+
+solarRoot = null;
 
 
 /* =========================================================
@@ -67,7 +125,9 @@ let pinchStartDistance = 0;
 let pinchStartFov = 70;
 
 const CREATOR_MIN_FOV = 35;
+
 const CREATOR_MAX_FOV = 90;
+
 const CREATOR_PINCH_SENSITIVITY = 0.12;
 
 
@@ -306,6 +366,15 @@ const tempProjected =
 const tempToSun =
   new THREE.Vector3();
 
+const tempLocalOrbit =
+  new THREE.Vector3();
+
+const tempMoonLocal =
+  new THREE.Vector3();
+
+const tempMoonWorld =
+  new THREE.Vector3();
+
 const worldUp =
   new THREE.Vector3(
     0,
@@ -332,6 +401,17 @@ const GAME_UNITS_PER_KM =
 const GAME_UNITS_PER_AU =
   KM_PER_AU *
   GAME_UNITS_PER_KM;
+
+
+/* =========================================================
+   REAL-TIME ORBITS
+   ========================================================= */
+
+const SECONDS_PER_DAY =
+  86_400;
+
+const SIMULATION_TIME_MULTIPLIER =
+  1;
 
 
 /* =========================================================
@@ -365,54 +445,6 @@ const MOON_ORBIT_RADIUS =
 
 const MOON_ORBIT_PERIOD_DAYS =
   27.322;
-
-
-/* =========================================================
-   PLAYER / PLANET VIEW SCALE
-   ========================================================= */
-
-/*
-   The Solar System itself remains at the existing
-   astronomical scale.
-
-   1 game unit = 1000 km.
-
-   A human eye-height is therefore extremely small
-   compared with a planet.
-
-   We use a tiny surface clearance so Creator mode
-   can place the camera very close to the surface.
-*/
-
-const PLAYER_EYE_HEIGHT =
-  0.0000017;
-
-/*
-   Approximately 6.8 meters above the mathematical
-   surface when Creator teleports you there.
-*/
-const PLANET_SURFACE_CLEARANCE =
-  PLAYER_EYE_HEIGHT * 4;
-
-
-/* =========================================================
-   STARTING VIEW
-   ========================================================= */
-
-const START_EARTH_VIEW_DISTANCE =
-  EARTH_GAME_RADIUS +
-  PLANET_SURFACE_CLEARANCE;
-
-
-/* =========================================================
-   REAL-TIME ORBITS
-   ========================================================= */
-
-const SECONDS_PER_DAY =
-  86_400;
-
-const SIMULATION_TIME_MULTIPLIER =
-  1;
 
 
 /* =========================================================
@@ -957,7 +989,7 @@ function createSunSprite() {
     sunPosition
   );
 
-  scene.add(
+  solarRoot.add(
     sunSprite
   );
 }
@@ -1181,6 +1213,55 @@ function createLabel(
 
 
 /* =========================================================
+   ORBIT QUATERNION
+   ========================================================= */
+
+function createOrbitQuaternion(
+  data
+) {
+  const nodeQuaternion =
+    new THREE.Quaternion()
+      .setFromAxisAngle(
+        worldUp,
+        THREE.MathUtils.degToRad(
+          data.longitudeOfAscendingNodeDegrees
+        )
+      );
+
+  const inclinationQuaternion =
+    new THREE.Quaternion()
+      .setFromAxisAngle(
+        new THREE.Vector3(
+          1,
+          0,
+          0
+        ),
+        THREE.MathUtils.degToRad(
+          data.orbitalInclinationDegrees
+        )
+      );
+
+  const periapsisQuaternion =
+    new THREE.Quaternion()
+      .setFromAxisAngle(
+        worldUp,
+        THREE.MathUtils.degToRad(
+          data.argumentOfPeriapsisDegrees
+        )
+      );
+
+  return nodeQuaternion
+    .clone()
+    .multiply(
+      inclinationQuaternion
+    )
+    .multiply(
+      periapsisQuaternion
+    );
+}
+
+
+/* =========================================================
    PLANET CREATION
    ========================================================= */
 
@@ -1202,7 +1283,6 @@ function createPlanet(data) {
       data.longitudeOfAscendingNodeDegrees
     );
 
-
   const inclinationGroup =
     new THREE.Group();
 
@@ -1210,7 +1290,6 @@ function createPlanet(data) {
     THREE.MathUtils.degToRad(
       data.orbitalInclinationDegrees
     );
-
 
   const periapsisGroup =
     new THREE.Group();
@@ -1220,7 +1299,6 @@ function createPlanet(data) {
       data.argumentOfPeriapsisDegrees
     );
 
-
   ascendingNodeGroup.add(
     inclinationGroup
   );
@@ -1229,7 +1307,7 @@ function createPlanet(data) {
     periapsisGroup
   );
 
-  scene.add(
+  solarRoot.add(
     ascendingNodeGroup
   );
 
@@ -1294,7 +1372,6 @@ function createPlanet(data) {
     planet
   );
 
-
   sunOccluders.push(
     planet
   );
@@ -1350,7 +1427,6 @@ function createPlanet(data) {
       moonPivot
     );
 
-
     createdMoon =
       new THREE.Mesh(
         new THREE.SphereGeometry(
@@ -1368,14 +1444,12 @@ function createPlanet(data) {
         })
       );
 
-
     createdMoon.position.x =
       MOON_ORBIT_RADIUS;
 
     moonPivot.add(
       createdMoon
     );
-
 
     sunOccluders.push(
       createdMoon
@@ -1388,27 +1462,27 @@ function createPlanet(data) {
       data.startMeanAnomalyDegrees
     );
 
-
   const initialEccentricAnomaly =
     solveEccentricAnomaly(
       startingMeanAnomaly,
       data.eccentricity
     );
 
-
-  orbitalBodyGroup.position.copy(
+  const initialOrbitPosition =
     getEllipsePosition(
       semiMajorAxis,
       data.eccentricity,
       initialEccentricAnomaly
-    )
+    );
+
+  orbitalBodyGroup.position.copy(
+    initialOrbitPosition
   );
 
 
   const orbitalPeriodSeconds =
     data.orbitalPeriodDays *
     SECONDS_PER_DAY;
-
 
   const meanMotion =
     (
@@ -1423,7 +1497,6 @@ function createPlanet(data) {
       data.rotationPeriodHours
     ) *
     3600;
-
 
   const spinSpeed =
     (
@@ -1466,9 +1539,53 @@ function createPlanet(data) {
     radius:
       planetRadius,
 
+    orbitQuaternion:
+      createOrbitQuaternion(
+        data
+      ),
+
+    worldPosition:
+      new THREE.Vector3(),
+
     moon:
-      createdMoon
+      createdMoon,
+
+    moonWorldPosition:
+      new THREE.Vector3()
   };
+
+
+  record.worldPosition
+    .copy(
+      initialOrbitPosition
+    )
+    .applyQuaternion(
+      record.orbitQuaternion
+    );
+
+
+  if (
+    createdMoon
+  ) {
+    tempMoonLocal.set(
+      MOON_ORBIT_RADIUS,
+      0,
+      0
+    );
+
+    tempMoonLocal.applyAxisAngle(
+      worldUp,
+      moonPivot.rotation.y
+    );
+
+    record.moonWorldPosition
+      .copy(
+        record.worldPosition
+      )
+      .add(
+        tempMoonLocal
+      );
+  }
 
 
   record.label =
@@ -1481,6 +1598,33 @@ function createPlanet(data) {
   solarPlanets.push(
     record
   );
+
+
+  if (
+    createdMoon
+  ) {
+    moonData =
+      record;
+  }
+}
+
+
+/* =========================================================
+   UPDATE SOLAR RENDER ORIGIN
+   ========================================================= */
+
+function updateSolarRenderOrigin() {
+  if (
+    !solarRoot
+  ) {
+    return;
+  }
+
+  solarRoot.position.set(
+    -playerWorldPosition.x,
+    -playerWorldPosition.y,
+    -playerWorldPosition.z
+  );
 }
 
 
@@ -1492,7 +1636,6 @@ function createSolarSystem() {
   scene =
     new THREE.Scene();
 
-
   scene.background =
     new THREE.Color(
       0x050711
@@ -1500,11 +1643,19 @@ function createSolarSystem() {
 
 
   /*
-     Tiny near plane lets us get genuinely close
-     to planetary surfaces.
+     Everything astronomical lives under this root.
 
-     The astronomical far plane is retained.
+     The root moves opposite the player so the camera
+     can stay at a tiny local coordinate near zero.
   */
+
+  solarRoot =
+    new THREE.Group();
+
+  scene.add(
+    solarRoot
+  );
+
 
   camera =
     new THREE.PerspectiveCamera(
@@ -1518,17 +1669,20 @@ function createSolarSystem() {
       20_000_000
     );
 
-
   camera.rotation.order =
     "YXZ";
 
+  camera.position.set(
+    0,
+    0,
+    0
+  );
 
   camera.rotation.set(
     pitch,
     yaw,
     0
   );
-
 
   scene.add(
     camera
@@ -1555,13 +1709,11 @@ function createSolarSystem() {
       2
     );
 
-
   sunLight.position.copy(
     sunPosition
   );
 
-
-  scene.add(
+  solarRoot.add(
     sunLight
   );
 
@@ -1580,13 +1732,11 @@ function createSolarSystem() {
       })
     );
 
-
   sun.position.copy(
     sunPosition
   );
 
-
-  scene.add(
+  solarRoot.add(
     sun
   );
 
@@ -1619,8 +1769,11 @@ function createSolarSystem() {
       })
     );
 
+  glow.position.copy(
+    sunPosition
+  );
 
-  scene.add(
+  solarRoot.add(
     glow
   );
 
@@ -1640,13 +1793,6 @@ function createSolarSystem() {
   }
 
 
-  /*
-     logarithmicDepthBuffer gives us much better
-     depth precision across the enormous range
-     between human-scale distances and planetary
-     / astronomical distances.
-  */
-
   renderer =
     new THREE.WebGLRenderer({
       antialias:
@@ -1659,7 +1805,6 @@ function createSolarSystem() {
         true
     });
 
-
   renderer.setPixelRatio(
     Math.min(
       window.devicePixelRatio ||
@@ -1669,35 +1814,28 @@ function createSolarSystem() {
     )
   );
 
-
   renderer.setSize(
     window.innerWidth,
     window.innerHeight
   );
 
-
   renderer.outputColorSpace =
     THREE.SRGBColorSpace;
-
 
   renderer.toneMapping =
     THREE.ACESFilmicToneMapping;
 
-
   renderer.toneMappingExposure =
     1.05;
-
 
   gameElement.prepend(
     renderer.domElement
   );
 
-
   renderer.domElement.setAttribute(
     "aria-label",
     "Interactive 3D Solar System"
   );
-
 
   renderer.domElement.setAttribute(
     "role",
@@ -1706,13 +1844,12 @@ function createSolarSystem() {
 
 
   /*
-     IMPORTANT:
+     Start close to Earth's surface.
 
-     We deliberately keep the real astronomical
-     coordinates here.
+     The astronomical Earth radius is still exactly
+     6371 km in the existing game scale.
 
-     The camera starts just above Earth's surface
-     instead of 140 game units away.
+     The camera is only a few metres above it.
   */
 
   const earthData =
@@ -1722,39 +1859,29 @@ function createSolarSystem() {
         "Earth"
     );
 
-
   if (
     earthData
   ) {
-    earthData.planet.getWorldPosition(
-      tempWorld
-    );
-
-
-    tempDirection.set(
-      0,
-      0,
-      1
-    );
-
-
-    camera.position
+    playerWorldPosition
       .copy(
-        tempWorld
-      )
-      .addScaledVector(
-        tempDirection,
-        START_EARTH_VIEW_DISTANCE
+        earthData.worldPosition
       );
+
+    playerWorldPosition.z +=
+      earthData.radius +
+      PLANET_SURFACE_OFFSET;
 
   } else {
 
-    camera.position.set(
+    playerWorldPosition.set(
       0,
       50,
       GAME_UNITS_PER_AU
     );
   }
+
+
+  updateSolarRenderOrigin();
 
 
   window.addEventListener(
@@ -1775,7 +1902,6 @@ function createSolarSystem() {
     true
   );
 
-
   animate();
 }
 
@@ -1792,14 +1918,11 @@ function handleResize() {
     return;
   }
 
-
   camera.aspect =
     window.innerWidth /
     window.innerHeight;
 
-
   camera.updateProjectionMatrix();
-
 
   renderer.setPixelRatio(
     Math.min(
@@ -1809,7 +1932,6 @@ function handleResize() {
       1.75
     )
   );
-
 
   renderer.setSize(
     window.innerWidth,
@@ -1832,7 +1954,6 @@ function isControlPressed(
   ) {
     return true;
   }
-
 
   return controlKeys[
     name
@@ -1930,7 +2051,6 @@ function updateMovement(
       )
       .normalize();
 
-
     movement.addScaledVector(
       tempRight,
       rightAmount
@@ -1963,13 +2083,21 @@ function updateMovement(
 
   movement.normalize();
 
-
   updateMovementSpeed(
     deltaTime
   );
 
 
-  camera.position.addScaledVector(
+  /*
+     IMPORTANT:
+
+     The camera no longer physically travels through
+     the huge Solar System coordinates.
+
+     Instead, the player's astronomical position moves.
+  */
+
+  playerWorldPosition.addScaledVector(
     movement,
     currentMovementSpeed *
       deltaTime
@@ -1985,9 +2113,17 @@ function updateMovement(
    ========================================================= */
 
 function getSunVisibilityState() {
+  /*
+     Convert the Sun's astronomical position into
+     camera-local rendering coordinates.
+  */
+
   tempProjected
     .copy(
       sunPosition
+    )
+    .sub(
+      playerWorldPosition
     )
     .project(
       camera
@@ -2027,7 +2163,7 @@ function getSunVisibilityState() {
       sunPosition
     )
     .sub(
-      camera.position
+      playerWorldPosition
     );
 
 
@@ -2200,7 +2336,7 @@ function updateSunAndEnergy(
     ) {
 
       const distance =
-        camera.position.distanceTo(
+        playerWorldPosition.distanceTo(
           sunPosition
         );
 
@@ -2348,14 +2484,35 @@ function updateOrbits(
       );
 
 
+    tempLocalOrbit.copy(
+      getEllipsePosition(
+        planetData.semiMajorAxis,
+        planetData.eccentricity,
+        eccentricAnomaly
+      )
+    );
+
+
     planetData
       .orbitalBodyGroup
       .position.copy(
-        getEllipsePosition(
-          planetData.semiMajorAxis,
-          planetData.eccentricity,
-          eccentricAnomaly
-        )
+        tempLocalOrbit
+      );
+
+
+    /*
+       Keep a separate astronomical world position.
+
+       This is important because the rendered scene is
+       floating around the player.
+    */
+
+    planetData.worldPosition
+      .copy(
+        tempLocalOrbit
+      )
+      .applyQuaternion(
+        planetData.orbitQuaternion
       );
 
 
@@ -2366,7 +2523,8 @@ function updateOrbits(
 
 
   if (
-    moonPivot
+    moonPivot &&
+    moonData
   ) {
 
     moonPivot.rotation.y +=
@@ -2378,6 +2536,28 @@ function updateOrbits(
         )
       ) *
       deltaTime;
+
+
+    tempMoonLocal.set(
+      MOON_ORBIT_RADIUS,
+      0,
+      0
+    );
+
+
+    tempMoonLocal.applyAxisAngle(
+      worldUp,
+      moonPivot.rotation.y
+    );
+
+
+    moonData.moonWorldPosition
+      .copy(
+        moonData.worldPosition
+      )
+      .add(
+        tempMoonLocal
+      );
   }
 }
 
@@ -2397,24 +2577,27 @@ function teleportToPlanet(
   }
 
 
-  planetData
-    .planet
-    .getWorldPosition(
-      tempWorld
-    );
+  /*
+     Use the real astronomical planet position,
+     not its floating render position.
+  */
+
+  tempWorld.copy(
+    planetData.worldPosition
+  );
 
 
   const away =
     new THREE.Vector3()
       .subVectors(
-        camera.position,
+        playerWorldPosition,
         tempWorld
       );
 
 
   if (
     away.lengthSq() <
-    0.001
+    0.0000000001
   ) {
     away.set(
       0,
@@ -2427,18 +2610,18 @@ function teleportToPlanet(
 
 
   /*
-     Place the camera just above the surface.
+     Human-scale teleport distance.
 
-     This is intentionally MUCH closer than the
-     old 3.5-radius Creator distance.
+     We place the player only a few metres above
+     the actual mathematical surface.
   */
 
   const standOff =
     planetData.radius +
-    PLANET_SURFACE_CLEARANCE;
+    PLANET_SURFACE_OFFSET;
 
 
-  camera.position
+  playerWorldPosition
     .copy(
       tempWorld
     )
@@ -2448,10 +2631,13 @@ function teleportToPlanet(
     );
 
 
+  updateSolarRenderOrigin();
+
+
   tempDirection
     .subVectors(
       tempWorld,
-      camera.position
+      playerWorldPosition
     )
     .normalize();
 
@@ -2509,6 +2695,12 @@ function updateLabels() {
       continue;
     }
 
+
+    /*
+       Because solarRoot has already been shifted,
+       getWorldPosition() now returns camera-local
+       coordinates with excellent precision.
+    */
 
     planetData
       .planet
@@ -2584,24 +2776,20 @@ function setHelperVisibility(
   helperUIVisible =
     visible;
 
-
   gameUI.classList.toggle(
     "ui-hidden",
     !visible
   );
-
 
   uiToggle.textContent =
     visible
       ? "UI OFF"
       : "UI ON";
 
-
   uiToggle.setAttribute(
     "aria-pressed",
     String(!visible)
   );
-
 
   updateCreatorLabelMode();
 }
@@ -2633,6 +2821,15 @@ function animate() {
     updateMovement(
       deltaTime
     );
+
+
+  /*
+     Move the astronomical world opposite the player.
+
+     The camera stays at local position 0,0,0.
+  */
+
+  updateSolarRenderOrigin();
 
 
   updateEnergy(
@@ -2700,7 +2897,6 @@ function startGame() {
 function setupControls() {
   const canvas =
     renderer.domElement;
-
 
   canvas.style.touchAction =
     "none";
@@ -2789,11 +2985,9 @@ function setupControls() {
         event.preventDefault();
         event.stopPropagation();
 
-
         pressedControls.delete(
           controlName
         );
-
 
         button.classList.remove(
           "is-pressed"
@@ -2807,11 +3001,9 @@ function setupControls() {
         event.preventDefault();
         event.stopPropagation();
 
-
         pressedControls.add(
           controlName
         );
-
 
         button.classList.add(
           "is-pressed"
@@ -2848,7 +3040,6 @@ function setupControls() {
         pressedControls.delete(
           controlName
         );
-
 
         button.classList.remove(
           "is-pressed"
@@ -3016,12 +3207,12 @@ function setupControls() {
 
 
       /*
-         Inverted touch look:
+         Keep the existing inverted touch-look behavior.
 
-         swipe RIGHT -> look LEFT
-         swipe LEFT  -> look RIGHT
-         swipe UP    -> look DOWN
-         swipe DOWN  -> look UP
+         Swipe right  -> look left
+         Swipe left   -> look right
+         Swipe up     -> look down
+         Swipe down   -> look up
       */
 
       yaw -=
@@ -3066,7 +3257,6 @@ function setupControls() {
         activeTouchPointers.delete(
           event.pointerId
         );
-
 
         if (
           activeTouchPointers.size <
