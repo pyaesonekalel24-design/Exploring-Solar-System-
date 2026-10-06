@@ -21,6 +21,8 @@ let scene;
 let camera;
 let renderer;
 
+let solarSystemRoot = null;
+
 let solarPlanets = [];
 
 let moonPivot = null;
@@ -28,6 +30,12 @@ let moonPivot = null;
 let stars = null;
 
 let sunSprite = null;
+
+let sunLight = null;
+
+let sunMesh = null;
+
+let sunGlow = null;
 
 let gameStarted = false;
 
@@ -37,6 +45,42 @@ let planetLabelsVisible = true;
 let orbitLinesVisible = true;
 
 let currentSpeedMode = "chill";
+
+
+/* =========================================================
+   FLOATING ORIGIN
+   =========================================================
+
+   The Solar System can be millions of game units wide.
+
+   We do NOT want the player camera sitting at enormous
+   coordinates such as:
+
+       x = 4,000,000
+
+   while trying to move only:
+
+       120 units / second
+
+   That can cause numerical precision problems.
+
+   Instead, the whole Solar System is periodically shifted
+   around the player.
+
+   The player therefore stays close to:
+
+       x = 0
+       y = 0
+       z = 0
+
+   while the relative distance between every object remains
+   exactly the same.
+
+   This does NOT change astronomical distances.
+   It only changes the render origin.
+   ========================================================= */
+
+const FLOATING_ORIGIN_THRESHOLD = 5_000;
 
 
 /* =========================================================
@@ -207,19 +251,18 @@ const ENERGY_RECHARGE_RATE = 18;
 /* =========================================================
    SPEED SYSTEM
    =========================================================
-   
-   The Solar System is now 3× larger spatially.
 
-   CHILL stays at 120:
-   - This makes Chill effectively 3× slower relative
-     to the enlarged Solar System.
+   CHILL:
+   - Remains exactly 120 world units / second.
+   - No hidden distance multiplier.
+   - No planet-dependent speed.
+   - Floating-origin keeps this speed stable everywhere.
 
-   CREATOR stays at 120:
-   - Preserves the comfortable sandbox feel.
+   CREATOR:
+   - Remains exactly 120.
 
-   SUPERMAN is scaled 3×:
-   - Keeps its relative travel power consistent with
-     the enlarged Solar System.
+   SUPERMAN:
+   - 750,000 because the Solar System itself is 3× larger.
    ========================================================= */
 
 const CHILL_SPEED = 120;
@@ -322,6 +365,9 @@ const tempProjected =
 const tempToSun =
   new THREE.Vector3();
 
+const tempShift =
+  new THREE.Vector3();
+
 const worldUp =
   new THREE.Vector3(
     0,
@@ -352,12 +398,6 @@ const GAME_UNITS_PER_AU =
 
 /* =========================================================
    WHOLE SOLAR SYSTEM SPATIAL SCALE
-   =========================================================
-   
-   This scales every physical distance and body radius
-   by the same factor.
-
-   Time is NOT scaled.
    ========================================================= */
 
 const SOLAR_SYSTEM_SCALE =
@@ -389,10 +429,6 @@ const MOON_RADIUS_KM =
   1_737.4;
 
 
-/*
- * Radius values are now 3× larger.
- */
-
 const SUN_RADIUS =
   SUN_RADIUS_KM *
   GAME_UNITS_PER_KM *
@@ -408,10 +444,6 @@ const MOON_RADIUS =
   GAME_UNITS_PER_KM *
   SOLAR_SYSTEM_SCALE;
 
-
-/*
- * Moon's physical orbital distance is also 3× larger.
- */
 
 const MOON_ORBIT_RADIUS =
   384_400 *
@@ -576,6 +608,76 @@ function showError(message) {
 
 
 /* =========================================================
+   UPDATE SUN WORLD POSITION
+   ========================================================= */
+
+function updateSunWorldPosition() {
+  if (
+    !solarSystemRoot
+  ) {
+    sunPosition.set(
+      0,
+      0,
+      0
+    );
+
+    return;
+  }
+
+  sunPosition.copy(
+    solarSystemRoot.position
+  );
+}
+
+
+/* =========================================================
+   FLOATING ORIGIN
+   ========================================================= */
+
+function rebaseSolarSystemIfNeeded() {
+  if (
+    !camera ||
+    !solarSystemRoot
+  ) {
+    return;
+  }
+
+  const distanceFromOrigin =
+    camera.position.length();
+
+  if (
+    distanceFromOrigin <
+    FLOATING_ORIGIN_THRESHOLD
+  ) {
+    return;
+  }
+
+  /*
+   * Move the entire Solar System by exactly the amount
+   * the camera is away from the local origin.
+   *
+   * Then put the camera back at the origin.
+   *
+   * Relative positions do not change.
+   */
+
+  tempShift.copy(
+    camera.position
+  );
+
+  solarSystemRoot.position.sub(
+    tempShift
+  );
+
+  camera.position.sub(
+    tempShift
+  );
+
+  updateSunWorldPosition();
+}
+
+
+/* =========================================================
    SPEED UI
    ========================================================= */
 
@@ -622,6 +724,21 @@ function setSpeedMode(mode) {
 
   currentSpeedMode =
     mode;
+
+  /*
+   * Do not allow a previous Superman acceleration state
+   * to make Chill suddenly continue at Superman speed.
+   *
+   * Chill and Creator immediately target 120.
+   */
+
+  if (
+    mode === "chill" ||
+    mode === "creator"
+  ) {
+    currentMovementSpeed =
+      CHILL_SPEED;
+  }
 
   updateSpeedButtons();
 }
@@ -690,6 +807,25 @@ function updateMovementSpeed(
 
   const targetSpeed =
     mode.speed;
+
+  /*
+   * Chill and Creator should always be exactly 120.
+   *
+   * This avoids carrying any previous acceleration state
+   * from Superman into the slower modes.
+   */
+
+  if (
+    currentSpeedMode ===
+      "chill" ||
+    currentSpeedMode ===
+      "creator"
+  ) {
+    currentMovementSpeed =
+      CHILL_SPEED;
+
+    return;
+  }
 
   const difference =
     targetSpeed -
@@ -960,11 +1096,18 @@ function createSunSprite() {
       })
     );
 
-  sunSprite.position.copy(
-    sunPosition
+  /*
+   * The sprite is a child of the Solar System root,
+   * so its local position is the Sun's local origin.
+   */
+
+  sunSprite.position.set(
+    0,
+    0,
+    0
   );
 
-  scene.add(
+  solarSystemRoot.add(
     sunSprite
   );
 }
@@ -1192,19 +1335,10 @@ function createLabel(
    ========================================================= */
 
 function createPlanet(data) {
-  /*
-   * Orbital distance is now 3× larger.
-   */
-
   const semiMajorAxis =
     data.semiMajorAxisAU *
     GAME_UNITS_PER_AU *
     SOLAR_SYSTEM_SCALE;
-
-
-  /*
-   * Planet radius is now 3× larger.
-   */
 
   const planetRadius =
     data.radiusKm *
@@ -1220,6 +1354,7 @@ function createPlanet(data) {
       data.longitudeOfAscendingNodeDegrees
     );
 
+
   const inclinationGroup =
     new THREE.Group();
 
@@ -1227,6 +1362,7 @@ function createPlanet(data) {
     THREE.MathUtils.degToRad(
       data.orbitalInclinationDegrees
     );
+
 
   const periapsisGroup =
     new THREE.Group();
@@ -1236,6 +1372,7 @@ function createPlanet(data) {
       data.argumentOfPeriapsisDegrees
     );
 
+
   ascendingNodeGroup.add(
     inclinationGroup
   );
@@ -1244,7 +1381,14 @@ function createPlanet(data) {
     periapsisGroup
   );
 
-  scene.add(
+  /*
+   * IMPORTANT:
+   *
+   * Planet systems now live inside the floating-origin
+   * Solar System root instead of directly inside scene.
+   */
+
+  solarSystemRoot.add(
     ascendingNodeGroup
   );
 
@@ -1270,6 +1414,7 @@ function createPlanet(data) {
   periapsisGroup.add(
     orbitalBodyGroup
   );
+
 
   const axialTiltGroup =
     new THREE.Group();
@@ -1359,6 +1504,7 @@ function createPlanet(data) {
       moonPivot
     );
 
+
     const moon =
       new THREE.Mesh(
         new THREE.SphereGeometry(
@@ -1376,9 +1522,6 @@ function createPlanet(data) {
         })
       );
 
-    /*
-     * Moon's distance from Earth is now 3× larger.
-     */
 
     moon.position.x =
       MOON_ORBIT_RADIUS;
@@ -1398,11 +1541,13 @@ function createPlanet(data) {
       data.startMeanAnomalyDegrees
     );
 
+
   const initialEccentricAnomaly =
     solveEccentricAnomaly(
       startingMeanAnomaly,
       data.eccentricity
     );
+
 
   orbitalBodyGroup.position.copy(
     getEllipsePosition(
@@ -1414,18 +1559,20 @@ function createPlanet(data) {
 
 
   /*
-   * IMPORTANT:
+   * REAL ORBITAL PERIOD
    *
-   * Orbital period remains exactly the same.
+   * Time remains unchanged.
    *
-   * Because the orbital radius is now 3× larger,
-   * the resulting linear orbital speed is automatically
-   * 3× larger while completing the orbit in the same time.
+   * Spatial distance is 3× larger.
+   *
+   * Therefore the linear orbital speed naturally
+   * becomes 3× larger while the period remains correct.
    */
 
   const orbitalPeriodSeconds =
     data.orbitalPeriodDays *
     SECONDS_PER_DAY;
+
 
   const meanMotion =
     (
@@ -1436,10 +1583,9 @@ function createPlanet(data) {
 
 
   /*
-   * Rotation period remains exactly the same.
+   * REAL ROTATION PERIOD
    *
-   * Therefore the planet's angular rotation speed
-   * is unchanged.
+   * Angular spin remains unchanged.
    */
 
   const rotationPeriodSeconds =
@@ -1447,6 +1593,7 @@ function createPlanet(data) {
       data.rotationPeriodHours
     ) *
     3600;
+
 
   const spinSpeed =
     (
@@ -1518,6 +1665,28 @@ function createSolarSystem() {
     );
 
 
+  /*
+   * Everything belonging to the actual Solar System goes
+   * inside this root.
+   *
+   * Moving this root is what gives us floating-origin
+   * behavior.
+   */
+
+  solarSystemRoot =
+    new THREE.Group();
+
+  solarSystemRoot.position.set(
+    0,
+    0,
+    0
+  );
+
+  scene.add(
+    solarSystemRoot
+  );
+
+
   camera =
     new THREE.PerspectiveCamera(
       70,
@@ -1526,11 +1695,6 @@ function createSolarSystem() {
         window.innerHeight,
 
       0.05,
-
-      /*
-       * The system is now 3× larger, so give the camera
-       * a much larger far clipping distance.
-       */
 
       60_000_000
     );
@@ -1558,7 +1722,7 @@ function createSolarSystem() {
   );
 
 
-  const sunLight =
+  sunLight =
     new THREE.PointLight(
       0xffd69a,
 
@@ -1569,16 +1733,18 @@ function createSolarSystem() {
       2
     );
 
-  sunLight.position.copy(
-    sunPosition
+  sunLight.position.set(
+    0,
+    0,
+    0
   );
 
-  scene.add(
+  solarSystemRoot.add(
     sunLight
   );
 
 
-  const sun =
+  sunMesh =
     new THREE.Mesh(
       new THREE.SphereGeometry(
         SUN_RADIUS,
@@ -1592,16 +1758,18 @@ function createSolarSystem() {
       })
     );
 
-  sun.position.copy(
-    sunPosition
+  sunMesh.position.set(
+    0,
+    0,
+    0
   );
 
-  scene.add(
-    sun
+  solarSystemRoot.add(
+    sunMesh
   );
 
 
-  const glow =
+  sunGlow =
     new THREE.Mesh(
       new THREE.SphereGeometry(
         SUN_RADIUS *
@@ -1629,8 +1797,14 @@ function createSolarSystem() {
       })
     );
 
-  scene.add(
-    glow
+  sunGlow.position.set(
+    0,
+    0,
+    0
+  );
+
+  solarSystemRoot.add(
+    sunGlow
   );
 
 
@@ -1658,6 +1832,7 @@ function createSolarSystem() {
         false
     });
 
+
   renderer.setPixelRatio(
     Math.min(
       window.devicePixelRatio ||
@@ -1667,28 +1842,35 @@ function createSolarSystem() {
     )
   );
 
+
   renderer.setSize(
     window.innerWidth,
     window.innerHeight
   );
 
+
   renderer.outputColorSpace =
     THREE.SRGBColorSpace;
+
 
   renderer.toneMapping =
     THREE.ACESFilmicToneMapping;
 
+
   renderer.toneMappingExposure =
     1.05;
+
 
   gameElement.prepend(
     renderer.domElement
   );
 
+
   renderer.domElement.setAttribute(
     "aria-label",
     "Interactive 3D Solar System"
   );
+
 
   renderer.domElement.setAttribute(
     "role",
@@ -1703,6 +1885,7 @@ function createSolarSystem() {
         "Earth"
     );
 
+
   if (
     earthData
   ) {
@@ -1714,11 +1897,6 @@ function createSolarSystem() {
       tempWorld
     );
 
-    /*
-     * The starting distance from Earth is also scaled
-     * with the enlarged system.
-     */
-
     camera.position.z +=
       140 *
       SOLAR_SYSTEM_SCALE;
@@ -1727,12 +1905,40 @@ function createSolarSystem() {
 
     camera.position.set(
       0,
+
       50 *
         SOLAR_SYSTEM_SCALE,
+
       GAME_UNITS_PER_AU *
         SOLAR_SYSTEM_SCALE
     );
   }
+
+
+  /*
+   * Immediately establish a stable floating-origin
+   * around the starting player position.
+   */
+
+  if (
+    camera.position.length() >
+    FLOATING_ORIGIN_THRESHOLD
+  ) {
+    tempShift.copy(
+      camera.position
+    );
+
+    solarSystemRoot.position.sub(
+      tempShift
+    );
+
+    camera.position.sub(
+      tempShift
+    );
+  }
+
+
+  updateSunWorldPosition();
 
 
   window.addEventListener(
@@ -1775,6 +1981,7 @@ function handleResize() {
 
   camera.updateProjectionMatrix();
 
+
   renderer.setPixelRatio(
     Math.min(
       window.devicePixelRatio ||
@@ -1783,6 +1990,7 @@ function handleResize() {
       1.75
     )
   );
+
 
   renderer.setSize(
     window.innerWidth,
@@ -1874,6 +2082,17 @@ function updateMovement(
     new THREE.Vector3();
 
 
+  /*
+   * IMPORTANT:
+   *
+   * Direction is calculated from camera orientation only.
+   *
+   * Camera position is irrelevant.
+   *
+   * Therefore floating-origin rebasing cannot change
+   * the direction or speed of the player.
+   */
+
   if (
     forwardAmount !== 0
   ) {
@@ -1934,9 +2153,24 @@ function updateMovement(
 
   movement.normalize();
 
+
   updateMovementSpeed(
     deltaTime
   );
+
+
+  /*
+   * EXACT MOVEMENT:
+   *
+   * Chill:
+   *     120 units/sec
+   *
+   * Creator:
+   *     120 units/sec
+   *
+   * Superman:
+   *     750,000 units/sec
+   */
 
   camera.position.addScaledVector(
     movement,
@@ -1954,6 +2188,9 @@ function updateMovement(
    ========================================================= */
 
 function getSunVisibilityState() {
+  updateSunWorldPosition();
+
+
   tempProjected
     .copy(
       sunPosition
@@ -2297,12 +2534,12 @@ function updateOrbits(
   ) {
 
     /*
-     * Mean motion is unchanged because the orbital
-     * period is unchanged.
+     * Orbital PERIOD stays real-time.
      *
-     * The orbit itself is 3× larger, therefore the
-     * planet's actual linear orbital movement through
-     * space is automatically 3× larger.
+     * The orbit radius is 3× larger.
+     *
+     * Therefore the linear orbital movement is also
+     * automatically 3× larger.
      */
 
     planetData.meanAnomaly +=
@@ -2338,7 +2575,7 @@ function updateOrbits(
 
 
     /*
-     * Rotation period is unchanged.
+     * Rotation period stays real-time.
      */
 
     planetData.planet.rotation.y +=
@@ -2350,13 +2587,6 @@ function updateOrbits(
   if (
     moonPivot
   ) {
-
-    /*
-     * Moon orbital period is unchanged.
-     *
-     * Moon orbit radius is 3× larger, so its linear
-     * orbital speed becomes 3× larger automatically.
-     */
 
     moonPivot.rotation.y +=
       (
@@ -2415,11 +2645,6 @@ function teleportToPlanet(
   }
 
 
-  /*
-   * Planet radius is already 3× larger, so this
-   * stand-off distance automatically scales with it.
-   */
-
   const standOff =
     Math.max(
       planetData.radius *
@@ -2477,6 +2702,17 @@ function teleportToPlanet(
     yaw,
     0
   );
+
+
+  /*
+   * Teleporting can put the camera thousands of units away
+   * from the current floating origin.
+   *
+   * Rebase immediately so movement starts from a stable
+   * numerical position.
+   */
+
+  rebaseSolarSystemIfNeeded();
 }
 
 
@@ -2620,6 +2856,23 @@ function animate() {
     updateMovement(
       deltaTime
     );
+
+
+  /*
+   * Rebase AFTER movement.
+   *
+   * This is important:
+   *
+   * 1. Player moves at exact Chill/Superman speed.
+   * 2. If player gets too far from origin, the whole
+   *    Solar System shifts together.
+   * 3. Player returns to a numerically stable position.
+   *
+   * The player therefore never receives a speed boost
+   * or slowdown from the rebase.
+   */
+
+  rebaseSolarSystemIfNeeded();
 
 
   updateEnergy(
