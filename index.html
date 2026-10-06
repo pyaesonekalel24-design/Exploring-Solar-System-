@@ -53,8 +53,13 @@
 
     <div id="game-ui" hidden>
 
+      <!-- ===================================================
+           MAIN HUD
+           =================================================== -->
+
       <div id="helper-ui">
 
+        <!-- ENERGY -->
         <div
           id="energy-hud"
           aria-label="Energy"
@@ -73,6 +78,8 @@
           <span id="energy-percent">100%</span>
         </div>
 
+
+        <!-- SPEED MODES -->
         <div
           id="speed-panel"
           aria-label="Flying mode"
@@ -105,17 +112,25 @@
           </button>
         </div>
 
+
+        <!-- UI OPTIONS -->
         <div
           id="visual-panel"
           aria-label="Visual settings"
+          hidden
         >
+          <div class="visual-panel-title">
+            DISPLAY
+          </div>
+
           <button
             class="visual-button"
             id="labels-toggle"
             type="button"
             aria-pressed="true"
           >
-            NAMES ON
+            <span>LABEL</span>
+            <span class="toggle-state">ON</span>
           </button>
 
           <button
@@ -124,35 +139,70 @@
             type="button"
             aria-pressed="true"
           >
-            ORBITS ON
+            <span>ORBIT</span>
+            <span class="toggle-state">ON</span>
+          </button>
+
+          <button
+            class="visual-button"
+            id="distance-toggle"
+            type="button"
+            aria-pressed="true"
+          >
+            <span>DISTANCE</span>
+            <span class="toggle-state">ON</span>
+          </button>
+
+          <button
+            class="visual-button cinematic-button"
+            id="cinematic-toggle"
+            type="button"
+            aria-pressed="false"
+          >
+            <span>CINEMATIC</span>
+            <span class="toggle-state">OFF</span>
           </button>
         </div>
 
       </div>
 
+
+      <!-- ===================================================
+           UI BUTTON
+           =================================================== -->
+
       <button
         id="ui-toggle"
         type="button"
-        aria-pressed="false"
+        aria-expanded="false"
+        aria-controls="visual-panel"
       >
-        UI OFF
+        UI
       </button>
+
+
+      <!-- ===================================================
+           FLIGHT CONTROLS
+           ALWAYS VISIBLE
+           =================================================== -->
 
       <div
         id="controls"
         aria-label="Flight controls"
       >
+
         <div
           class="movement-pad"
           aria-label="Horizontal movement"
         >
+
           <button
             class="control-button forward-button"
             type="button"
             data-control="forward"
             aria-label="Forward"
           >
-            FORWARD
+            <span class="arrow-icon arrow-up"></span>
           </button>
 
           <button
@@ -161,7 +211,7 @@
             data-control="left"
             aria-label="Left"
           >
-            LEFT
+            <span class="arrow-icon arrow-left"></span>
           </button>
 
           <button
@@ -170,7 +220,7 @@
             data-control="back"
             aria-label="Back"
           >
-            BACK
+            <span class="arrow-icon arrow-down"></span>
           </button>
 
           <button
@@ -179,21 +229,24 @@
             data-control="right"
             aria-label="Right"
           >
-            RIGHT
+            <span class="arrow-icon arrow-right"></span>
           </button>
+
         </div>
+
 
         <div
           class="vertical-pad"
           aria-label="Vertical movement"
         >
+
           <button
             class="control-button"
             type="button"
             data-control="up"
             aria-label="Up"
           >
-            UP
+            <span class="arrow-icon arrow-double-up"></span>
           </button>
 
           <button
@@ -202,9 +255,11 @@
             data-control="down"
             aria-label="Down"
           >
-            DOWN
+            <span class="arrow-icon arrow-double-down"></span>
           </button>
+
         </div>
+
       </div>
 
     </div>
