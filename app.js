@@ -67,9 +67,7 @@ let pinchStartDistance = 0;
 let pinchStartFov = 70;
 
 const CREATOR_MIN_FOV = 35;
-
 const CREATOR_MAX_FOV = 90;
-
 const CREATOR_PINCH_SENSITIVITY = 0.12;
 
 
@@ -337,47 +335,6 @@ const GAME_UNITS_PER_AU =
 
 
 /* =========================================================
-   PLAYER / PLANET VIEW SCALE
-   ========================================================= */
-
-/*
-   The Solar System itself remains at the existing scale.
-
-   These values control how close the camera is allowed
-   to begin/teleport relative to a planet.
-
-   The important idea is that the camera should get much
-   closer to the actual planetary surface instead of
-   sitting several planet radii away.
-
-   This creates the intended "tiny human looking at a
-   gigantic planet" feeling without changing orbital
-   distances.
-*/
-
-const PLANET_SURFACE_CLEARANCE =
-  0.08;
-
-const DEFAULT_PLANET_VIEW_DISTANCE =
-  0.35;
-
-const START_EARTH_VIEW_DISTANCE =
-  EARTH_GAME_RADIUS +
-  PLANET_SURFACE_CLEARANCE;
-
-
-/* =========================================================
-   REAL-TIME ORBITS
-   ========================================================= */
-
-const SECONDS_PER_DAY =
-  86_400;
-
-const SIMULATION_TIME_MULTIPLIER =
-  1;
-
-
-/* =========================================================
    BODY RADII
    ========================================================= */
 
@@ -408,6 +365,54 @@ const MOON_ORBIT_RADIUS =
 
 const MOON_ORBIT_PERIOD_DAYS =
   27.322;
+
+
+/* =========================================================
+   PLAYER / PLANET VIEW SCALE
+   ========================================================= */
+
+/*
+   The Solar System itself remains at the existing
+   astronomical scale.
+
+   1 game unit = 1000 km.
+
+   A human eye-height is therefore extremely small
+   compared with a planet.
+
+   We use a tiny surface clearance so Creator mode
+   can place the camera very close to the surface.
+*/
+
+const PLAYER_EYE_HEIGHT =
+  0.0000017;
+
+/*
+   Approximately 6.8 meters above the mathematical
+   surface when Creator teleports you there.
+*/
+const PLANET_SURFACE_CLEARANCE =
+  PLAYER_EYE_HEIGHT * 4;
+
+
+/* =========================================================
+   STARTING VIEW
+   ========================================================= */
+
+const START_EARTH_VIEW_DISTANCE =
+  EARTH_GAME_RADIUS +
+  PLANET_SURFACE_CLEARANCE;
+
+
+/* =========================================================
+   REAL-TIME ORBITS
+   ========================================================= */
+
+const SECONDS_PER_DAY =
+  86_400;
+
+const SIMULATION_TIME_MULTIPLIER =
+  1;
 
 
 /* =========================================================
@@ -1197,6 +1202,7 @@ function createPlanet(data) {
       data.longitudeOfAscendingNodeDegrees
     );
 
+
   const inclinationGroup =
     new THREE.Group();
 
@@ -1205,6 +1211,7 @@ function createPlanet(data) {
       data.orbitalInclinationDegrees
     );
 
+
   const periapsisGroup =
     new THREE.Group();
 
@@ -1212,6 +1219,7 @@ function createPlanet(data) {
     THREE.MathUtils.degToRad(
       data.argumentOfPeriapsisDegrees
     );
+
 
   ascendingNodeGroup.add(
     inclinationGroup
@@ -1247,6 +1255,7 @@ function createPlanet(data) {
   periapsisGroup.add(
     orbitalBodyGroup
   );
+
 
   const axialTiltGroup =
     new THREE.Group();
@@ -1284,6 +1293,7 @@ function createPlanet(data) {
   axialTiltGroup.add(
     planet
   );
+
 
   sunOccluders.push(
     planet
@@ -1326,6 +1336,10 @@ function createPlanet(data) {
   }
 
 
+  let createdMoon =
+    null;
+
+
   if (
     data.hasMoon
   ) {
@@ -1336,7 +1350,8 @@ function createPlanet(data) {
       moonPivot
     );
 
-    const moon =
+
+    createdMoon =
       new THREE.Mesh(
         new THREE.SphereGeometry(
           MOON_RADIUS,
@@ -1353,15 +1368,17 @@ function createPlanet(data) {
         })
       );
 
-    moon.position.x =
+
+    createdMoon.position.x =
       MOON_ORBIT_RADIUS;
 
     moonPivot.add(
-      moon
+      createdMoon
     );
 
+
     sunOccluders.push(
-      moon
+      createdMoon
     );
   }
 
@@ -1371,11 +1388,13 @@ function createPlanet(data) {
       data.startMeanAnomalyDegrees
     );
 
+
   const initialEccentricAnomaly =
     solveEccentricAnomaly(
       startingMeanAnomaly,
       data.eccentricity
     );
+
 
   orbitalBodyGroup.position.copy(
     getEllipsePosition(
@@ -1390,6 +1409,7 @@ function createPlanet(data) {
     data.orbitalPeriodDays *
     SECONDS_PER_DAY;
 
+
   const meanMotion =
     (
       Math.PI * 2 /
@@ -1403,6 +1423,7 @@ function createPlanet(data) {
       data.rotationPeriodHours
     ) *
     3600;
+
 
   const spinSpeed =
     (
@@ -1443,7 +1464,10 @@ function createPlanet(data) {
       null,
 
     radius:
-      planetRadius
+      planetRadius,
+
+    moon:
+      createdMoon
   };
 
 
@@ -1468,11 +1492,19 @@ function createSolarSystem() {
   scene =
     new THREE.Scene();
 
+
   scene.background =
     new THREE.Color(
       0x050711
     );
 
+
+  /*
+     Tiny near plane lets us get genuinely close
+     to planetary surfaces.
+
+     The astronomical far plane is retained.
+  */
 
   camera =
     new THREE.PerspectiveCamera(
@@ -1481,19 +1513,22 @@ function createSolarSystem() {
       window.innerWidth /
         window.innerHeight,
 
-      0.005,
+      0.000001,
 
       20_000_000
     );
 
+
   camera.rotation.order =
     "YXZ";
+
 
   camera.rotation.set(
     pitch,
     yaw,
     0
   );
+
 
   scene.add(
     camera
@@ -1520,9 +1555,11 @@ function createSolarSystem() {
       2
     );
 
+
   sunLight.position.copy(
     sunPosition
   );
+
 
   scene.add(
     sunLight
@@ -1543,9 +1580,11 @@ function createSolarSystem() {
       })
     );
 
+
   sun.position.copy(
     sunPosition
   );
+
 
   scene.add(
     sun
@@ -1580,6 +1619,7 @@ function createSolarSystem() {
       })
     );
 
+
   scene.add(
     glow
   );
@@ -1600,14 +1640,25 @@ function createSolarSystem() {
   }
 
 
+  /*
+     logarithmicDepthBuffer gives us much better
+     depth precision across the enormous range
+     between human-scale distances and planetary
+     / astronomical distances.
+  */
+
   renderer =
     new THREE.WebGLRenderer({
       antialias:
         true,
 
       alpha:
-        false
+        false,
+
+      logarithmicDepthBuffer:
+        true
     });
+
 
   renderer.setPixelRatio(
     Math.min(
@@ -1618,34 +1669,51 @@ function createSolarSystem() {
     )
   );
 
+
   renderer.setSize(
     window.innerWidth,
     window.innerHeight
   );
 
+
   renderer.outputColorSpace =
     THREE.SRGBColorSpace;
+
 
   renderer.toneMapping =
     THREE.ACESFilmicToneMapping;
 
+
   renderer.toneMappingExposure =
     1.05;
+
 
   gameElement.prepend(
     renderer.domElement
   );
+
 
   renderer.domElement.setAttribute(
     "aria-label",
     "Interactive 3D Solar System"
   );
 
+
   renderer.domElement.setAttribute(
     "role",
     "application"
   );
 
+
+  /*
+     IMPORTANT:
+
+     We deliberately keep the real astronomical
+     coordinates here.
+
+     The camera starts just above Earth's surface
+     instead of 140 game units away.
+  */
 
   const earthData =
     solarPlanets.find(
@@ -1654,6 +1722,7 @@ function createSolarSystem() {
         "Earth"
     );
 
+
   if (
     earthData
   ) {
@@ -1661,12 +1730,22 @@ function createSolarSystem() {
       tempWorld
     );
 
-    camera.position.copy(
-      tempWorld
+
+    tempDirection.set(
+      0,
+      0,
+      1
     );
 
-    camera.position.z +=
-      START_EARTH_VIEW_DISTANCE;
+
+    camera.position
+      .copy(
+        tempWorld
+      )
+      .addScaledVector(
+        tempDirection,
+        START_EARTH_VIEW_DISTANCE
+      );
 
   } else {
 
@@ -1696,6 +1775,7 @@ function createSolarSystem() {
     true
   );
 
+
   animate();
 }
 
@@ -1712,11 +1792,14 @@ function handleResize() {
     return;
   }
 
+
   camera.aspect =
     window.innerWidth /
     window.innerHeight;
 
+
   camera.updateProjectionMatrix();
+
 
   renderer.setPixelRatio(
     Math.min(
@@ -1726,6 +1809,7 @@ function handleResize() {
       1.75
     )
   );
+
 
   renderer.setSize(
     window.innerWidth,
@@ -1748,6 +1832,7 @@ function isControlPressed(
   ) {
     return true;
   }
+
 
   return controlKeys[
     name
@@ -1845,6 +1930,7 @@ function updateMovement(
       )
       .normalize();
 
+
     movement.addScaledVector(
       tempRight,
       rightAmount
@@ -1877,9 +1963,11 @@ function updateMovement(
 
   movement.normalize();
 
+
   updateMovementSpeed(
     deltaTime
   );
+
 
   camera.position.addScaledVector(
     movement,
@@ -2339,22 +2427,15 @@ function teleportToPlanet(
 
 
   /*
-     Much closer planet viewing distance.
+     Place the camera just above the surface.
 
-     Instead of 3.5 planet radii away, the camera
-     now sits only slightly above the surface.
-
-     This is what makes planets feel enormous
-     from the player's point of view.
+     This is intentionally MUCH closer than the
+     old 3.5-radius Creator distance.
   */
 
   const standOff =
     planetData.radius +
-    Math.max(
-      PLANET_SURFACE_CLEARANCE,
-      planetData.radius *
-        0.04
-    );
+    PLANET_SURFACE_CLEARANCE;
 
 
   camera.position
@@ -2503,20 +2584,24 @@ function setHelperVisibility(
   helperUIVisible =
     visible;
 
+
   gameUI.classList.toggle(
     "ui-hidden",
     !visible
   );
+
 
   uiToggle.textContent =
     visible
       ? "UI OFF"
       : "UI ON";
 
+
   uiToggle.setAttribute(
     "aria-pressed",
     String(!visible)
   );
+
 
   updateCreatorLabelMode();
 }
@@ -2616,6 +2701,7 @@ function setupControls() {
   const canvas =
     renderer.domElement;
 
+
   canvas.style.touchAction =
     "none";
 
@@ -2703,9 +2789,11 @@ function setupControls() {
         event.preventDefault();
         event.stopPropagation();
 
+
         pressedControls.delete(
           controlName
         );
+
 
         button.classList.remove(
           "is-pressed"
@@ -2719,9 +2807,11 @@ function setupControls() {
         event.preventDefault();
         event.stopPropagation();
 
+
         pressedControls.add(
           controlName
         );
+
 
         button.classList.add(
           "is-pressed"
@@ -2758,6 +2848,7 @@ function setupControls() {
         pressedControls.delete(
           controlName
         );
+
 
         button.classList.remove(
           "is-pressed"
@@ -2924,6 +3015,15 @@ function setupControls() {
         event.clientY;
 
 
+      /*
+         Inverted touch look:
+
+         swipe RIGHT -> look LEFT
+         swipe LEFT  -> look RIGHT
+         swipe UP    -> look DOWN
+         swipe DOWN  -> look UP
+      */
+
       yaw -=
         deltaX *
         lookSensitivity;
@@ -2966,6 +3066,7 @@ function setupControls() {
         activeTouchPointers.delete(
           event.pointerId
         );
+
 
         if (
           activeTouchPointers.size <
