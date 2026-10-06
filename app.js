@@ -206,13 +206,27 @@ const ENERGY_RECHARGE_RATE = 18;
 
 /* =========================================================
    SPEED SYSTEM
+   =========================================================
+   
+   The Solar System is now 3× larger spatially.
+
+   CHILL stays at 120:
+   - This makes Chill effectively 3× slower relative
+     to the enlarged Solar System.
+
+   CREATOR stays at 120:
+   - Preserves the comfortable sandbox feel.
+
+   SUPERMAN is scaled 3×:
+   - Keeps its relative travel power consistent with
+     the enlarged Solar System.
    ========================================================= */
 
 const CHILL_SPEED = 120;
 
-const SUPERMAN_SPEED = 250_000;
+const SUPERMAN_SPEED = 750_000;
 
-const SPEED_ACCELERATION = 150_000;
+const SPEED_ACCELERATION = 450_000;
 
 const speedModes = {
   chill: {
@@ -337,6 +351,20 @@ const GAME_UNITS_PER_AU =
 
 
 /* =========================================================
+   WHOLE SOLAR SYSTEM SPATIAL SCALE
+   =========================================================
+   
+   This scales every physical distance and body radius
+   by the same factor.
+
+   Time is NOT scaled.
+   ========================================================= */
+
+const SOLAR_SYSTEM_SCALE =
+  3;
+
+
+/* =========================================================
    REAL-TIME ORBITS
    ========================================================= */
 
@@ -360,21 +388,35 @@ const EARTH_RADIUS_KM =
 const MOON_RADIUS_KM =
   1_737.4;
 
+
+/*
+ * Radius values are now 3× larger.
+ */
+
 const SUN_RADIUS =
   SUN_RADIUS_KM *
-  GAME_UNITS_PER_KM;
+  GAME_UNITS_PER_KM *
+  SOLAR_SYSTEM_SCALE;
 
 const EARTH_GAME_RADIUS =
   EARTH_RADIUS_KM *
-  GAME_UNITS_PER_KM;
+  GAME_UNITS_PER_KM *
+  SOLAR_SYSTEM_SCALE;
 
 const MOON_RADIUS =
   MOON_RADIUS_KM *
-  GAME_UNITS_PER_KM;
+  GAME_UNITS_PER_KM *
+  SOLAR_SYSTEM_SCALE;
+
+
+/*
+ * Moon's physical orbital distance is also 3× larger.
+ */
 
 const MOON_ORBIT_RADIUS =
   384_400 *
-  GAME_UNITS_PER_KM;
+  GAME_UNITS_PER_KM *
+  SOLAR_SYSTEM_SCALE;
 
 const MOON_ORBIT_PERIOD_DAYS =
   27.322;
@@ -1150,13 +1192,24 @@ function createLabel(
    ========================================================= */
 
 function createPlanet(data) {
+  /*
+   * Orbital distance is now 3× larger.
+   */
+
   const semiMajorAxis =
     data.semiMajorAxisAU *
-    GAME_UNITS_PER_AU;
+    GAME_UNITS_PER_AU *
+    SOLAR_SYSTEM_SCALE;
+
+
+  /*
+   * Planet radius is now 3× larger.
+   */
 
   const planetRadius =
     data.radiusKm *
-    GAME_UNITS_PER_KM;
+    GAME_UNITS_PER_KM *
+    SOLAR_SYSTEM_SCALE;
 
 
   const ascendingNodeGroup =
@@ -1323,6 +1376,10 @@ function createPlanet(data) {
         })
       );
 
+    /*
+     * Moon's distance from Earth is now 3× larger.
+     */
+
     moon.position.x =
       MOON_ORBIT_RADIUS;
 
@@ -1356,6 +1413,16 @@ function createPlanet(data) {
   );
 
 
+  /*
+   * IMPORTANT:
+   *
+   * Orbital period remains exactly the same.
+   *
+   * Because the orbital radius is now 3× larger,
+   * the resulting linear orbital speed is automatically
+   * 3× larger while completing the orbit in the same time.
+   */
+
   const orbitalPeriodSeconds =
     data.orbitalPeriodDays *
     SECONDS_PER_DAY;
@@ -1367,6 +1434,13 @@ function createPlanet(data) {
     ) *
     SIMULATION_TIME_MULTIPLIER;
 
+
+  /*
+   * Rotation period remains exactly the same.
+   *
+   * Therefore the planet's angular rotation speed
+   * is unchanged.
+   */
 
   const rotationPeriodSeconds =
     Math.abs(
@@ -1453,7 +1527,12 @@ function createSolarSystem() {
 
       0.05,
 
-      20_000_000
+      /*
+       * The system is now 3× larger, so give the camera
+       * a much larger far clipping distance.
+       */
+
+      60_000_000
     );
 
   camera.rotation.order =
@@ -1635,15 +1714,23 @@ function createSolarSystem() {
       tempWorld
     );
 
+    /*
+     * The starting distance from Earth is also scaled
+     * with the enlarged system.
+     */
+
     camera.position.z +=
-      140;
+      140 *
+      SOLAR_SYSTEM_SCALE;
 
   } else {
 
     camera.position.set(
       0,
-      50,
-      GAME_UNITS_PER_AU
+      50 *
+        SOLAR_SYSTEM_SCALE,
+      GAME_UNITS_PER_AU *
+        SOLAR_SYSTEM_SCALE
     );
   }
 
@@ -2209,6 +2296,15 @@ function updateOrbits(
       solarPlanets
   ) {
 
+    /*
+     * Mean motion is unchanged because the orbital
+     * period is unchanged.
+     *
+     * The orbit itself is 3× larger, therefore the
+     * planet's actual linear orbital movement through
+     * space is automatically 3× larger.
+     */
+
     planetData.meanAnomaly +=
       planetData.meanMotion *
       deltaTime;
@@ -2241,6 +2337,10 @@ function updateOrbits(
       );
 
 
+    /*
+     * Rotation period is unchanged.
+     */
+
     planetData.planet.rotation.y +=
       planetData.spinSpeed *
       deltaTime;
@@ -2250,6 +2350,13 @@ function updateOrbits(
   if (
     moonPivot
   ) {
+
+    /*
+     * Moon orbital period is unchanged.
+     *
+     * Moon orbit radius is 3× larger, so its linear
+     * orbital speed becomes 3× larger automatically.
+     */
 
     moonPivot.rotation.y +=
       (
@@ -2307,6 +2414,11 @@ function teleportToPlanet(
     away.normalize();
   }
 
+
+  /*
+   * Planet radius is already 3× larger, so this
+   * stand-off distance automatically scales with it.
+   */
 
   const standOff =
     Math.max(
