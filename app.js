@@ -55,6 +55,147 @@ const lookSensitivity = 0.0035;
 
 
 /* =========================================================
+   CREATOR MOBILE PINCH ZOOM
+   ========================================================= */
+
+let activeTouchPointers = new Map();
+
+let creatorPinching = false;
+
+let pinchStartDistance = 0;
+
+let pinchStartFov = 70;
+
+const CREATOR_MIN_FOV = 35;
+
+const CREATOR_MAX_FOV = 90;
+
+const CREATOR_PINCH_SENSITIVITY = 0.12;
+
+
+function getPointerDistance(
+  pointerA,
+  pointerB
+) {
+  const dx =
+    pointerA.clientX -
+    pointerB.clientX;
+
+  const dy =
+    pointerA.clientY -
+    pointerB.clientY;
+
+  return Math.sqrt(
+    dx * dx +
+    dy * dy
+  );
+}
+
+
+function beginCreatorPinch() {
+  if (
+    currentSpeedMode !==
+    "creator"
+  ) {
+    return;
+  }
+
+  const pointers =
+    Array.from(
+      activeTouchPointers.values()
+    );
+
+  if (
+    pointers.length !== 2
+  ) {
+    return;
+  }
+
+  creatorPinching =
+    true;
+
+  dragging =
+    false;
+
+  pinchStartDistance =
+    getPointerDistance(
+      pointers[0],
+      pointers[1]
+    );
+
+  pinchStartFov =
+    camera.fov;
+}
+
+
+function updateCreatorPinch() {
+  if (
+    !creatorPinching ||
+    currentSpeedMode !==
+      "creator"
+  ) {
+    return;
+  }
+
+  const pointers =
+    Array.from(
+      activeTouchPointers.values()
+    );
+
+  if (
+    pointers.length !== 2
+  ) {
+    return;
+  }
+
+  const currentDistance =
+    getPointerDistance(
+      pointers[0],
+      pointers[1]
+    );
+
+  const distanceChange =
+    currentDistance -
+    pinchStartDistance;
+
+  camera.fov =
+    THREE.MathUtils.clamp(
+      pinchStartFov -
+        distanceChange *
+        CREATOR_PINCH_SENSITIVITY,
+
+      CREATOR_MIN_FOV,
+
+      CREATOR_MAX_FOV
+    );
+
+  camera.updateProjectionMatrix();
+}
+
+
+function endCreatorPinch() {
+  if (
+    activeTouchPointers.size <
+    2
+  ) {
+    creatorPinching =
+      false;
+  }
+}
+
+
+function resetCreatorPinch() {
+  activeTouchPointers.clear();
+
+  creatorPinching =
+    false;
+
+  dragging =
+    false;
+}
+
+
+/* =========================================================
    ENERGY
    ========================================================= */
 
@@ -67,36 +208,31 @@ const ENERGY_RECHARGE_RATE = 18;
    SPEED SYSTEM
    ========================================================= */
 
-const CHILL_MAX_SPEED = 8000;
+const CHILL_SPEED = 120;
 
-const SUPERMAN_MAX_SPEED =
-  CHILL_MAX_SPEED * 8;
+const SUPERMAN_SPEED = 250_000;
 
-const SPEED_ACCELERATION = 18000;
-
-const PLANET_SLOW_ZONE = 10000;
-
-const MIN_ADAPTIVE_SPEED = 120;
+const SPEED_ACCELERATION = 150_000;
 
 const speedModes = {
   chill: {
-    maxSpeed: CHILL_MAX_SPEED,
+    speed: CHILL_SPEED,
     drainRate: 0
   },
 
   superman: {
-    maxSpeed: SUPERMAN_MAX_SPEED,
-    drainRate: 4
+    speed: SUPERMAN_SPEED,
+    drainRate: 10
   },
 
   creator: {
-    maxSpeed: CHILL_MAX_SPEED,
+    speed: CHILL_SPEED,
     drainRate: 0
   }
 };
 
 let currentMovementSpeed =
-  CHILL_MAX_SPEED;
+  CHILL_SPEED;
 
 
 /* =========================================================
@@ -445,12 +581,6 @@ function setSpeedMode(mode) {
   currentSpeedMode =
     mode;
 
-  currentMovementSpeed =
-    Math.min(
-      currentMovementSpeed,
-      speedModes[mode].maxSpeed
-    );
-
   updateSpeedButtons();
 }
 
@@ -504,77 +634,20 @@ function updateEnergyDisplay() {
 
 
 /* =========================================================
-   ADAPTIVE MOVEMENT SPEED
+   MOVEMENT SPEED
    ========================================================= */
 
-function getAdaptiveSpeed() {
-  let nearestSurfaceDistance =
-    Infinity;
-
-  for (
-    const planetData of
-      solarPlanets
-  ) {
-    planetData.planet.getWorldPosition(
-      tempWorld
-    );
-
-    const distanceToCenter =
-      camera.position.distanceTo(
-        tempWorld
-      );
-
-    const distanceToSurface =
-      Math.max(
-        0,
-        distanceToCenter -
-          planetData.radius
-      );
-
-    if (
-      distanceToSurface <
-      nearestSurfaceDistance
-    ) {
-      nearestSurfaceDistance =
-        distanceToSurface;
-    }
-  }
-
-  const distanceFactor =
-    THREE.MathUtils.clamp(
-      nearestSurfaceDistance /
-        PLANET_SLOW_ZONE,
-      0,
-      1
-    );
-
-  const smoothFactor =
-    distanceFactor *
-    distanceFactor *
-    (3 - 2 * distanceFactor);
-
+function updateMovementSpeed(
+  deltaTime
+) {
   const mode =
     speedModes[
       currentSpeedMode
     ] ||
     speedModes.chill;
 
-  return (
-    MIN_ADAPTIVE_SPEED +
-    (
-      mode.maxSpeed -
-      MIN_ADAPTIVE_SPEED
-    ) *
-    smoothFactor
-  );
-}
-
-
-function updateMovementSpeed(
-  deltaTime
-) {
   const targetSpeed =
-    getAdaptiveSpeed();
+    mode.speed;
 
   const difference =
     targetSpeed -
@@ -2503,6 +2576,9 @@ function setupControls() {
   const canvas =
     renderer.domElement;
 
+  canvas.style.touchAction =
+    "none";
+
 
   const controlButtons =
     document.querySelectorAll(
@@ -2548,6 +2624,7 @@ function setupControls() {
   const orbitsToggle =
     $("orbits-toggle");
 
+
   labelsToggle.addEventListener(
     "click",
     () => {
@@ -2556,6 +2633,7 @@ function setupControls() {
       );
     }
   );
+
 
   orbitsToggle.addEventListener(
     "click",
@@ -2566,6 +2644,10 @@ function setupControls() {
     }
   );
 
+
+  /* =======================================================
+     FLIGHT BUTTONS
+     ======================================================= */
 
   for (
     const button of
@@ -2653,13 +2735,65 @@ function setupControls() {
   }
 
 
+  /* =======================================================
+     CAMERA LOOK + CREATOR PINCH
+     ======================================================= */
+
   canvas.addEventListener(
     "pointerdown",
     (event) => {
 
       if (
         !gameStarted ||
+        event.pointerType ===
+          "mouse" &&
         event.button !== 0
+      ) {
+        return;
+      }
+
+
+      if (
+        event.pointerType ===
+        "touch"
+      ) {
+        activeTouchPointers.set(
+          event.pointerId,
+          {
+            clientX:
+              event.clientX,
+
+            clientY:
+              event.clientY
+          }
+        );
+
+
+        if (
+          activeTouchPointers.size ===
+          2 &&
+          currentSpeedMode ===
+            "creator"
+        ) {
+          beginCreatorPinch();
+          return;
+        }
+
+
+        if (
+          activeTouchPointers.size >
+          1
+        ) {
+          dragging =
+            false;
+
+          return;
+        }
+      }
+
+
+      if (
+        creatorPinching
       ) {
         return;
       }
@@ -2693,8 +2827,40 @@ function setupControls() {
     (event) => {
 
       if (
+        event.pointerType ===
+        "touch" &&
+        activeTouchPointers.has(
+          event.pointerId
+        )
+      ) {
+        activeTouchPointers.set(
+          event.pointerId,
+          {
+            clientX:
+              event.clientX,
+
+            clientY:
+              event.clientY
+          }
+        );
+
+
+        if (
+          activeTouchPointers.size ===
+            2 &&
+          currentSpeedMode ===
+            "creator"
+        ) {
+          updateCreatorPinch();
+          return;
+        }
+      }
+
+
+      if (
         !dragging ||
-        !gameStarted
+        !gameStarted ||
+        creatorPinching
       ) {
         return;
       }
@@ -2750,9 +2916,33 @@ function setupControls() {
 
 
   const stopDragging =
-    () => {
-      dragging =
-        false;
+    (event) => {
+
+      if (
+        event &&
+        event.pointerType ===
+          "touch"
+      ) {
+        activeTouchPointers.delete(
+          event.pointerId
+        );
+
+        if (
+          activeTouchPointers.size <
+          2
+        ) {
+          endCreatorPinch();
+        }
+      }
+
+
+      if (
+        activeTouchPointers.size ===
+        0
+      ) {
+        dragging =
+          false;
+      }
     };
 
 
@@ -2773,6 +2963,10 @@ function setupControls() {
     stopDragging
   );
 
+
+  /* =======================================================
+     KEYBOARD SUPPORT
+     ======================================================= */
 
   window.addEventListener(
     "keydown",
@@ -2833,8 +3027,7 @@ function setupControls() {
       );
 
 
-      dragging =
-        false;
+      resetCreatorPinch();
     }
   );
 }
