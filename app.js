@@ -10,6 +10,7 @@ const startButton = $("start-button");
 const gameUI = $("game-ui");
 const gameElement = $("game");
 const uiToggle = $("ui-toggle");
+const northButton = $("north-button");
 const labelLayer = $("planet-label-layer");
 
 
@@ -694,6 +695,7 @@ function setSpeedMode(mode) {
   }
 
   updateSpeedButtons();
+  updateEnergyDisplay();
 }
 
 
@@ -743,6 +745,16 @@ function updateEnergyDisplay() {
     $("energy-fill").style.backgroundColor =
       "#65e68a";
   }
+
+  const lowEnergy =
+    currentSpeedMode ===
+      "superman" &&
+    energy < 20;
+
+  gameUI.classList.toggle(
+    "superman-low-energy",
+    lowEnergy
+  );
 }
 
 
@@ -895,7 +907,8 @@ function setOrbitLinesVisible(
       solarPlanets
   ) {
     planetData.orbitLine.visible =
-      orbitLinesVisible;
+      orbitLinesVisible &&
+      !cinematicMode;
   }
 
   updateVisualToggleButtons();
@@ -947,6 +960,15 @@ function setCinematicMode(
     );
   }
 
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    planetData.orbitLine.visible =
+      orbitLinesVisible &&
+      !cinematicMode;
+  }
+
   gameUI.classList.toggle(
     "cinematic-mode",
     cinematicMode
@@ -990,6 +1012,37 @@ function setUIMenuVisible(
   uiToggle.setAttribute(
     "aria-expanded",
     String(uiMenuVisible)
+  );
+}
+
+
+/* =========================================================
+   NORTH / HEADING
+   ========================================================= */
+
+function setNorthHeading() {
+  if (
+    !camera
+  ) {
+    return;
+  }
+
+  /*
+   * Solar-system NORTH is represented by the
+   * game's fixed -Z viewing direction.
+   *
+   * Resetting both yaw and pitch gives the player
+   * a completely predictable reference orientation.
+   */
+
+  yaw = 0;
+
+  pitch = 0;
+
+  camera.rotation.set(
+    pitch,
+    yaw,
+    0
   );
 }
 
@@ -3051,6 +3104,21 @@ function setupControls() {
       setUIMenuVisible(
         !uiMenuVisible
       );
+    }
+  );
+
+
+  /* =======================================================
+     NORTH BUTTON
+     ======================================================= */
+
+  northButton.addEventListener(
+    "click",
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      setNorthHeading();
     }
   );
 
