@@ -346,6 +346,126 @@ const sunOccluders = [];
 
 
 /* =========================================================
+   TEXTURE SYSTEM
+   =========================================================
+   
+   Texture source:
+   Solar System Scope planet texture pack.
+   CC BY 4.0:
+   https://creativecommons.org/licenses/by/4.0/
+
+   Primary URLs use the official Solar System Scope
+   download endpoint. The fallback mirror keeps the game
+   resilient if the primary host is temporarily unavailable.
+   ========================================================= */
+
+const textureLoader =
+  new THREE.TextureLoader();
+
+const TEXTURE_URLS = {
+  earth:
+    [
+      "https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg",
+      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_earth_daymap.jpg"
+    ],
+
+  earthClouds:
+    [
+      "https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg",
+      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_earth_clouds.jpg"
+    ],
+
+  jupiter:
+    [
+      "https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg",
+      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_jupiter.jpg"
+    ],
+
+  saturn:
+    [
+      "https://www.solarsystemscope.com/textures/download/2k_saturn.jpg",
+      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_saturn.jpg"
+    ],
+
+  saturnRing:
+    [
+      "https://www.solarsystemscope.com/textures/download/2k_saturn_ring_alpha.png",
+      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_saturn_ring_alpha.png"
+    ]
+};
+
+
+function configureLoadedTexture(texture) {
+  texture.colorSpace =
+    THREE.SRGBColorSpace;
+
+  texture.anisotropy =
+    renderer
+      ? Math.min(
+          4,
+          renderer.capabilities.getMaxAnisotropy()
+        )
+      : 1;
+
+  texture.minFilter =
+    THREE.LinearMipmapLinearFilter;
+
+  texture.magFilter =
+    THREE.LinearFilter;
+
+  texture.needsUpdate =
+    true;
+
+  return texture;
+}
+
+
+function loadTextureWithFallback(
+  urls,
+  onLoad
+) {
+  let attemptIndex = 0;
+
+  const attempt =
+    () => {
+      if (
+        attemptIndex >=
+        urls.length
+      ) {
+        return;
+      }
+
+      const url =
+        urls[attemptIndex];
+
+      textureLoader.load(
+        url,
+
+        (texture) => {
+          configureLoadedTexture(
+            texture
+          );
+
+          onLoad(
+            texture
+          );
+        },
+
+        undefined,
+
+        () => {
+          attemptIndex += 1;
+
+          attempt();
+        }
+      );
+    };
+
+  attempt();
+}
+
+
+/* =========================================================
    REAL ASTRONOMICAL SCALE
    ========================================================= */
 
@@ -392,7 +512,6 @@ const EARTH_RADIUS_KM =
 const MOON_RADIUS_KM =
   1_737.4;
 
-
 const SUN_RADIUS =
   SUN_RADIUS_KM *
   GAME_UNITS_PER_KM *
@@ -407,7 +526,6 @@ const MOON_RADIUS =
   MOON_RADIUS_KM *
   GAME_UNITS_PER_KM *
   SOLAR_SYSTEM_SCALE;
-
 
 const MOON_ORBIT_RADIUS =
   384_400 *
@@ -686,6 +804,11 @@ function setSpeedMode(mode) {
   currentSpeedMode =
     mode;
 
+  /*
+   * Chill and Creator are intentionally instant and fixed.
+   * This prevents Creator/Chill from inheriting a previous
+   * Superman acceleration state.
+   */
   if (
     mode === "chill" ||
     mode === "creator"
@@ -1026,14 +1149,6 @@ function setNorthHeading() {
   ) {
     return;
   }
-
-  /*
-   * Solar-system NORTH is represented by the
-   * game's fixed -Z viewing direction.
-   *
-   * Resetting both yaw and pitch gives the player
-   * a completely predictable reference orientation.
-   */
 
   yaw = 0;
 
@@ -1395,6 +1510,229 @@ function createOrbitLine(
 
 
 /* =========================================================
+   SATURN RING GEOMETRY
+   =========================================================
+   
+   The Solar System Scope Saturn ring texture is a radial
+   slice. Standard RingGeometry uses planar UVs, so we build
+   our own UVs: horizontal texture coordinate = ring radius.
+   This makes the texture bands actually follow the rings.
+   ========================================================= */
+
+function createSaturnRingGeometry(
+  innerRadius,
+  outerRadius,
+  segments = 256
+) {
+  const vertexCount =
+    (segments + 1) * 2;
+
+  const positions =
+    new Float32Array(
+      vertexCount * 3
+    );
+
+  const normals =
+    new Float32Array(
+      vertexCount * 3
+    );
+
+  const uvs =
+    new Float32Array(
+      vertexCount * 2
+    );
+
+  const indices =
+    [];
+
+  let vertexIndex =
+    0;
+
+  for (
+    let i = 0;
+    i <= segments;
+    i += 1
+  ) {
+    const angle =
+      (
+        i /
+        segments
+      ) *
+      Math.PI *
+      2;
+
+    const cos =
+      Math.cos(
+        angle
+      );
+
+    const sin =
+      Math.sin(
+        angle
+      );
+
+    const v =
+      i /
+      segments;
+
+    const innerX =
+      innerRadius *
+      cos;
+
+    const innerY =
+      innerRadius *
+      sin;
+
+    const outerX =
+      outerRadius *
+      cos;
+
+    const outerY =
+      outerRadius *
+      sin;
+
+    positions[
+      vertexIndex * 3
+    ] =
+      innerX;
+
+    positions[
+      vertexIndex * 3 + 1
+    ] =
+      innerY;
+
+    positions[
+      vertexIndex * 3 + 2
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3 + 1
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3 + 2
+    ] =
+      1;
+
+    uvs[
+      vertexIndex * 2
+    ] =
+      0;
+
+    uvs[
+      vertexIndex * 2 + 1
+    ] =
+      v;
+
+    vertexIndex += 1;
+
+    positions[
+      vertexIndex * 3
+    ] =
+      outerX;
+
+    positions[
+      vertexIndex * 3 + 1
+    ] =
+      outerY;
+
+    positions[
+      vertexIndex * 3 + 2
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3 + 1
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3 + 2
+    ] =
+      1;
+
+    uvs[
+      vertexIndex * 2
+    ] =
+      1;
+
+    uvs[
+      vertexIndex * 2 + 1
+    ] =
+      v;
+
+    vertexIndex += 1;
+  }
+
+  for (
+    let i = 0;
+    i < segments;
+    i += 1
+  ) {
+    const base =
+      i * 2;
+
+    indices.push(
+      base,
+      base + 1,
+      base + 2,
+
+      base + 1,
+      base + 3,
+      base + 2
+    );
+  }
+
+  const geometry =
+    new THREE.BufferGeometry();
+
+  geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+  geometry.setAttribute(
+    "normal",
+    new THREE.BufferAttribute(
+      normals,
+      3
+    )
+  );
+
+  geometry.setAttribute(
+    "uv",
+    new THREE.BufferAttribute(
+      uvs,
+      2
+    )
+  );
+
+  geometry.setIndex(
+    indices
+  );
+
+  geometry.computeBoundingSphere();
+
+  return geometry;
+}
+
+
+/* =========================================================
    DISTANCE FORMATTING
    ========================================================= */
 
@@ -1452,7 +1790,6 @@ function createLabel(
   label.className =
     "planet-label";
 
-
   const nameElement =
     document.createElement(
       "span"
@@ -1463,7 +1800,6 @@ function createLabel(
 
   nameElement.textContent =
     name;
-
 
   const distanceElement =
     document.createElement(
@@ -1476,7 +1812,6 @@ function createLabel(
   distanceElement.textContent =
     "";
 
-
   label.appendChild(
     nameElement
   );
@@ -1484,7 +1819,6 @@ function createLabel(
   label.appendChild(
     distanceElement
   );
-
 
   label.addEventListener(
     "pointerdown",
@@ -1500,7 +1834,6 @@ function createLabel(
       event.stopPropagation();
     }
   );
-
 
   label.addEventListener(
     "click",
@@ -1521,15 +1854,12 @@ function createLabel(
     }
   );
 
-
   labelLayer.appendChild(
     label
   );
 
-
   planetData.labelDistance =
     distanceElement;
-
 
   return label;
 }
@@ -1550,7 +1880,6 @@ function createPlanet(data) {
     GAME_UNITS_PER_KM *
     SOLAR_SYSTEM_SCALE;
 
-
   const ascendingNodeGroup =
     new THREE.Group();
 
@@ -1558,7 +1887,6 @@ function createPlanet(data) {
     THREE.MathUtils.degToRad(
       data.longitudeOfAscendingNodeDegrees
     );
-
 
   const inclinationGroup =
     new THREE.Group();
@@ -1568,7 +1896,6 @@ function createPlanet(data) {
       data.orbitalInclinationDegrees
     );
 
-
   const periapsisGroup =
     new THREE.Group();
 
@@ -1576,7 +1903,6 @@ function createPlanet(data) {
     THREE.MathUtils.degToRad(
       data.argumentOfPeriapsisDegrees
     );
-
 
   ascendingNodeGroup.add(
     inclinationGroup
@@ -1586,11 +1912,9 @@ function createPlanet(data) {
     periapsisGroup
   );
 
-
   solarSystemRoot.add(
     ascendingNodeGroup
   );
-
 
   const orbitLine =
     createOrbitLine(
@@ -1606,14 +1930,12 @@ function createPlanet(data) {
     orbitLine
   );
 
-
   const orbitalBodyGroup =
     new THREE.Group();
 
   periapsisGroup.add(
     orbitalBodyGroup
   );
-
 
   const axialTiltGroup =
     new THREE.Group();
@@ -1627,25 +1949,43 @@ function createPlanet(data) {
     axialTiltGroup
   );
 
+  const heroPlanet =
+    data.name === "Earth" ||
+    data.name === "Jupiter" ||
+    data.name === "Saturn";
+
+  const sphereSegments =
+    heroPlanet
+      ? 48
+      : 32;
+
+  const sphereRings =
+    heroPlanet
+      ? 32
+      : 20;
+
+  const material =
+    new THREE.MeshStandardMaterial({
+      color:
+        data.color,
+
+      roughness:
+        data.name === "Earth"
+          ? 0.70
+          : 0.90,
+
+      metalness:
+        0.02
+    });
 
   const planet =
     new THREE.Mesh(
       new THREE.SphereGeometry(
         planetRadius,
-        32,
-        20
+        sphereSegments,
+        sphereRings
       ),
-
-      new THREE.MeshStandardMaterial({
-        color:
-          data.color,
-
-        roughness:
-          0.88,
-
-        metalness:
-          0.02
-      })
+      material
     );
 
   axialTiltGroup.add(
@@ -1657,31 +1997,188 @@ function createPlanet(data) {
   );
 
 
+  /* =======================================================
+     EARTH DETAIL
+     ======================================================= */
+
+  let cloudMesh =
+    null;
+
+  if (
+    data.name ===
+    "Earth"
+  ) {
+    loadTextureWithFallback(
+      TEXTURE_URLS.earth,
+      (texture) => {
+        material.map =
+          texture;
+
+        material.color.set(
+          0xffffff
+        );
+
+        material.roughness =
+          0.72;
+
+        material.needsUpdate =
+          true;
+      }
+    );
+
+    const cloudMaterial =
+      new THREE.MeshStandardMaterial({
+        color:
+          0xffffff,
+
+        transparent:
+          true,
+
+        opacity:
+          0.48,
+
+        depthWrite:
+          false,
+
+        roughness:
+          1
+      });
+
+    cloudMesh =
+      new THREE.Mesh(
+        new THREE.SphereGeometry(
+          planetRadius *
+            1.014,
+
+          sphereSegments,
+          sphereRings
+        ),
+        cloudMaterial
+      );
+
+    axialTiltGroup.add(
+      cloudMesh
+    );
+
+    loadTextureWithFallback(
+      TEXTURE_URLS.earthClouds,
+      (texture) => {
+        cloudMaterial.map =
+          texture;
+
+        cloudMaterial.needsUpdate =
+          true;
+      }
+    );
+  }
+
+
+  /* =======================================================
+     JUPITER DETAIL
+     ======================================================= */
+
+  if (
+    data.name ===
+    "Jupiter"
+  ) {
+    loadTextureWithFallback(
+      TEXTURE_URLS.jupiter,
+      (texture) => {
+        material.map =
+          texture;
+
+        material.color.set(
+          0xffffff
+        );
+
+        material.roughness =
+          0.94;
+
+        material.needsUpdate =
+          true;
+      }
+    );
+  }
+
+
+  /* =======================================================
+     SATURN DETAIL
+     ======================================================= */
+
+  if (
+    data.name ===
+    "Saturn"
+  ) {
+    loadTextureWithFallback(
+      TEXTURE_URLS.saturn,
+      (texture) => {
+        material.map =
+          texture;
+
+        material.color.set(
+          0xffffff
+        );
+
+        material.roughness =
+          0.96;
+
+        material.needsUpdate =
+          true;
+      }
+    );
+  }
+
+
+  /* =======================================================
+     SATURN RINGS
+     ======================================================= */
+
   if (
     data.hasRings
   ) {
+    const ringInnerRadius =
+      planetRadius *
+      1.12;
+
+    const ringOuterRadius =
+      planetRadius *
+      2.32;
+
+    const ringGeometry =
+      createSaturnRingGeometry(
+        ringInnerRadius,
+        ringOuterRadius,
+        256
+      );
+
+    const ringMaterial =
+      new THREE.MeshStandardMaterial({
+        color:
+          0xd8c89f,
+
+        side:
+          THREE.DoubleSide,
+
+        transparent:
+          true,
+
+        opacity:
+          0.92,
+
+        roughness:
+          0.96,
+
+        metalness:
+          0,
+
+        depthWrite:
+          false
+      });
+
     const rings =
       new THREE.Mesh(
-        new THREE.RingGeometry(
-          planetRadius *
-            1.35,
-
-          planetRadius *
-            2.35,
-
-          128
-        ),
-
-        new THREE.MeshStandardMaterial({
-          color:
-            0xc9b98e,
-
-          side:
-            THREE.DoubleSide,
-
-          roughness:
-            0.95
-        })
+        ringGeometry,
+        ringMaterial
       );
 
     rings.rotation.x =
@@ -1690,8 +2187,29 @@ function createPlanet(data) {
     planet.add(
       rings
     );
+
+    loadTextureWithFallback(
+      TEXTURE_URLS.saturnRing,
+      (texture) => {
+        texture.wrapS =
+          THREE.ClampToEdgeWrapping;
+
+        texture.wrapT =
+          THREE.RepeatWrapping;
+
+        ringMaterial.alphaMap =
+          texture;
+
+        ringMaterial.needsUpdate =
+          true;
+      }
+    );
   }
 
+
+  /* =======================================================
+     MOON
+     ======================================================= */
 
   if (
     data.hasMoon
@@ -1702,7 +2220,6 @@ function createPlanet(data) {
     orbitalBodyGroup.add(
       moonPivot
     );
-
 
     const moon =
       new THREE.Mesh(
@@ -1721,7 +2238,6 @@ function createPlanet(data) {
         })
       );
 
-
     moon.position.x =
       MOON_ORBIT_RADIUS;
 
@@ -1735,18 +2251,20 @@ function createPlanet(data) {
   }
 
 
+  /* =======================================================
+     INITIAL ORBIT STATE
+     ======================================================= */
+
   const startingMeanAnomaly =
     THREE.MathUtils.degToRad(
       data.startMeanAnomalyDegrees
     );
-
 
   const initialEccentricAnomaly =
     solveEccentricAnomaly(
       startingMeanAnomaly,
       data.eccentricity
     );
-
 
   orbitalBodyGroup.position.copy(
     getEllipsePosition(
@@ -1756,11 +2274,9 @@ function createPlanet(data) {
     )
   );
 
-
   const orbitalPeriodSeconds =
     data.orbitalPeriodDays *
     SECONDS_PER_DAY;
-
 
   const meanMotion =
     (
@@ -1769,13 +2285,11 @@ function createPlanet(data) {
     ) *
     SIMULATION_TIME_MULTIPLIER;
 
-
   const rotationPeriodSeconds =
     Math.abs(
       data.rotationPeriodHours
     ) *
     3600;
-
 
   const spinSpeed =
     (
@@ -1788,7 +2302,6 @@ function createPlanet(data) {
       ) || 1
     ) *
     SIMULATION_TIME_MULTIPLIER;
-
 
   const record = {
     name:
@@ -1812,6 +2325,8 @@ function createPlanet(data) {
 
     orbitLine,
 
+    cloudMesh,
+
     label:
       null,
 
@@ -1822,13 +2337,11 @@ function createPlanet(data) {
       planetRadius
   };
 
-
   record.label =
     createLabel(
       data.name,
       record
     );
-
 
   solarPlanets.push(
     record
@@ -1849,7 +2362,6 @@ function createSolarSystem() {
       0x050711
     );
 
-
   solarSystemRoot =
     new THREE.Group();
 
@@ -1862,7 +2374,6 @@ function createSolarSystem() {
   scene.add(
     solarSystemRoot
   );
-
 
   camera =
     new THREE.PerspectiveCamera(
@@ -1889,7 +2400,6 @@ function createSolarSystem() {
     camera
   );
 
-
   scene.add(
     new THREE.HemisphereLight(
       0x8ea6d4,
@@ -1897,7 +2407,6 @@ function createSolarSystem() {
       0.45
     )
   );
-
 
   sunLight =
     new THREE.PointLight(
@@ -1919,7 +2428,6 @@ function createSolarSystem() {
   solarSystemRoot.add(
     sunLight
   );
-
 
   sunMesh =
     new THREE.Mesh(
@@ -1944,7 +2452,6 @@ function createSolarSystem() {
   solarSystemRoot.add(
     sunMesh
   );
-
 
   sunGlow =
     new THREE.Mesh(
@@ -1984,11 +2491,9 @@ function createSolarSystem() {
     sunGlow
   );
 
-
   createSunSprite();
 
   createStarField();
-
 
   for (
     const planetData of
@@ -1999,7 +2504,6 @@ function createSolarSystem() {
     );
   }
 
-
   renderer =
     new THREE.WebGLRenderer({
       antialias:
@@ -2008,7 +2512,6 @@ function createSolarSystem() {
       alpha:
         false
     });
-
 
   renderer.setPixelRatio(
     Math.min(
@@ -2019,35 +2522,28 @@ function createSolarSystem() {
     )
   );
 
-
   renderer.setSize(
     window.innerWidth,
     window.innerHeight
   );
 
-
   renderer.outputColorSpace =
     THREE.SRGBColorSpace;
-
 
   renderer.toneMapping =
     THREE.ACESFilmicToneMapping;
 
-
   renderer.toneMappingExposure =
     1.05;
-
 
   gameElement.prepend(
     renderer.domElement
   );
 
-
   renderer.domElement.setAttribute(
     "aria-label",
     "Interactive 3D Solar System"
   );
-
 
   renderer.domElement.setAttribute(
     "role",
@@ -2055,13 +2551,16 @@ function createSolarSystem() {
   );
 
 
+  /* =======================================================
+     INITIAL CAMERA
+     ======================================================= */
+
   const earthData =
     solarPlanets.find(
       (planet) =>
         planet.name ===
         "Earth"
     );
-
 
   if (
     earthData
@@ -2091,7 +2590,6 @@ function createSolarSystem() {
     );
   }
 
-
   if (
     camera.position.length() >
     FLOATING_ORIGIN_THRESHOLD
@@ -2109,15 +2607,12 @@ function createSolarSystem() {
     );
   }
 
-
   updateSunWorldPosition();
-
 
   window.addEventListener(
     "resize",
     handleResize
   );
-
 
   setupControls();
 
@@ -2153,7 +2648,6 @@ function handleResize() {
 
   camera.updateProjectionMatrix();
 
-
   renderer.setPixelRatio(
     Math.min(
       window.devicePixelRatio ||
@@ -2162,7 +2656,6 @@ function handleResize() {
       1.75
     )
   );
-
 
   renderer.setSize(
     window.innerWidth,
@@ -2210,7 +2703,6 @@ function updateMovement(
     return false;
   }
 
-
   const forwardAmount =
     Number(
       isControlPressed(
@@ -2222,7 +2714,6 @@ function updateMovement(
         "back"
       )
     );
-
 
   const rightAmount =
     Number(
@@ -2236,7 +2727,6 @@ function updateMovement(
       )
     );
 
-
   const verticalAmount =
     Number(
       isControlPressed(
@@ -2249,10 +2739,8 @@ function updateMovement(
       )
     );
 
-
   const movement =
     new THREE.Vector3();
-
 
   if (
     forwardAmount !== 0
@@ -2266,7 +2754,6 @@ function updateMovement(
       forwardAmount
     );
   }
-
 
   if (
     rightAmount !== 0
@@ -2288,10 +2775,8 @@ function updateMovement(
     );
   }
 
-
   movement.y +=
     verticalAmount;
-
 
   if (
     movement.lengthSq() ===
@@ -2299,7 +2784,6 @@ function updateMovement(
   ) {
     return false;
   }
-
 
   if (
     energy <= 0 &&
@@ -2311,21 +2795,17 @@ function updateMovement(
     );
   }
 
-
   movement.normalize();
-
 
   updateMovementSpeed(
     deltaTime
   );
-
 
   camera.position.addScaledVector(
     movement,
     currentMovementSpeed *
       deltaTime
   );
-
 
   return true;
 }
@@ -2338,7 +2818,6 @@ function updateMovement(
 function getSunVisibilityState() {
   updateSunWorldPosition();
 
-
   tempProjected
     .copy(
       sunPosition
@@ -2347,7 +2826,6 @@ function getSunVisibilityState() {
       camera
     );
 
-
   const inFrustum =
     tempProjected.x >= -1 &&
     tempProjected.x <= 1 &&
@@ -2355,7 +2833,6 @@ function getSunVisibilityState() {
     tempProjected.y <= 1 &&
     tempProjected.z >= -1 &&
     tempProjected.z <= 1;
-
 
   if (
     !inFrustum
@@ -2375,7 +2852,6 @@ function getSunVisibilityState() {
     };
   }
 
-
   tempToSun
     .copy(
       sunPosition
@@ -2384,10 +2860,8 @@ function getSunVisibilityState() {
       camera.position
     );
 
-
   const distance =
     tempToSun.length();
-
 
   if (
     distance <=
@@ -2418,14 +2892,11 @@ function getSunVisibilityState() {
     };
   }
 
-
   tempToSun.normalize();
-
 
   camera.getWorldDirection(
     tempDirection
   );
-
 
   if (
     tempDirection.dot(
@@ -2447,12 +2918,10 @@ function getSunVisibilityState() {
     };
   }
 
-
   raycaster.set(
     camera.position,
     tempToSun
   );
-
 
   const hits =
     raycaster.intersectObjects(
@@ -2460,14 +2929,12 @@ function getSunVisibilityState() {
       false
     );
 
-
   const blocked =
     hits.some(
       (hit) =>
         hit.distance <
         distance
     );
-
 
   if (
     blocked
@@ -2487,7 +2954,6 @@ function getSunVisibilityState() {
     };
   }
 
-
   const angularDiameter =
     2 *
     Math.atan(
@@ -2495,12 +2961,10 @@ function getSunVisibilityState() {
       distance
     );
 
-
   const fovRadians =
     THREE.MathUtils.degToRad(
       camera.fov
     );
-
 
   const pixels =
     angularDiameter *
@@ -2508,7 +2972,6 @@ function getSunVisibilityState() {
       window.innerHeight /
       fovRadians
     );
-
 
   return {
     visible:
@@ -2545,23 +3008,19 @@ function updateSunAndEnergy(
   const state =
     getSunVisibilityState();
 
-
   if (
     sunSprite
   ) {
     if (
       state.visible
     ) {
-
       const distance =
         camera.position.distanceTo(
           sunPosition
         );
 
-
       const minimumPixels =
         2.5;
-
 
       const targetPixels =
         Math.max(
@@ -2569,12 +3028,10 @@ function updateSunAndEnergy(
           state.pixels
         );
 
-
       const fovRadians =
         THREE.MathUtils.degToRad(
           camera.fov
         );
-
 
       const worldSize =
         2 *
@@ -2588,13 +3045,11 @@ function updateSunAndEnergy(
           2
         );
 
-
       sunSprite.scale.set(
         worldSize,
         worldSize,
         1
       );
-
 
       sunSprite.material.opacity =
         state.pixels <
@@ -2608,7 +3063,6 @@ function updateSunAndEnergy(
         0;
     }
   }
-
 
   if (
     currentSpeedMode ===
@@ -2624,7 +3078,6 @@ function updateSunAndEnergy(
             deltaTime
       );
   }
-
 
   updateEnergyDisplay();
 }
@@ -2647,7 +3100,6 @@ function updateEnergy(
     return;
   }
 
-
   energy =
     Math.max(
       0,
@@ -2657,7 +3109,6 @@ function updateEnergy(
           .drainRate *
         deltaTime
     );
-
 
   if (
     energy === 0
@@ -2680,11 +3131,9 @@ function updateOrbits(
     const planetData of
       solarPlanets
   ) {
-
     planetData.meanAnomaly +=
       planetData.meanMotion *
       deltaTime;
-
 
     if (
       planetData.meanAnomaly >
@@ -2694,13 +3143,11 @@ function updateOrbits(
         Math.PI * 2;
     }
 
-
     const eccentricAnomaly =
       solveEccentricAnomaly(
         planetData.meanAnomaly,
         planetData.eccentricity
       );
-
 
     planetData
       .orbitalBodyGroup
@@ -2712,17 +3159,23 @@ function updateOrbits(
         )
       );
 
-
     planetData.planet.rotation.y +=
       planetData.spinSpeed *
       deltaTime;
-  }
 
+    if (
+      planetData.cloudMesh
+    ) {
+      planetData.cloudMesh.rotation.y +=
+        planetData.spinSpeed *
+        0.94 *
+        deltaTime;
+    }
+  }
 
   if (
     moonPivot
   ) {
-
     moonPivot.rotation.y +=
       (
         Math.PI * 2 /
@@ -2750,13 +3203,11 @@ function teleportToPlanet(
     return;
   }
 
-
   planetData
     .planet
     .getWorldPosition(
       tempWorld
     );
-
 
   const away =
     new THREE.Vector3()
@@ -2764,7 +3215,6 @@ function teleportToPlanet(
         camera.position,
         tempWorld
       );
-
 
   if (
     away.lengthSq() <
@@ -2779,7 +3229,6 @@ function teleportToPlanet(
     away.normalize();
   }
 
-
   const standOff =
     Math.max(
       planetData.radius *
@@ -2787,7 +3236,6 @@ function teleportToPlanet(
 
       30
     );
-
 
   camera.position
     .copy(
@@ -2798,7 +3246,6 @@ function teleportToPlanet(
       standOff
     );
 
-
   tempDirection
     .subVectors(
       tempWorld,
@@ -2806,13 +3253,11 @@ function teleportToPlanet(
     )
     .normalize();
 
-
   yaw =
     Math.atan2(
       -tempDirection.x,
       -tempDirection.z
     );
-
 
   pitch =
     Math.asin(
@@ -2823,7 +3268,6 @@ function teleportToPlanet(
       )
     );
 
-
   pitch =
     THREE.MathUtils.clamp(
       pitch,
@@ -2831,13 +3275,11 @@ function teleportToPlanet(
       Math.PI / 2 - 0.05
     );
 
-
   camera.rotation.set(
     pitch,
     yaw,
     0
   );
-
 
   rebaseSolarSystemIfNeeded();
 }
@@ -2848,12 +3290,10 @@ function teleportToPlanet(
    ========================================================= */
 
 function updateLabels() {
-
   for (
     const planetData of
       solarPlanets
   ) {
-
     if (
       !planetLabelsVisible ||
       cinematicMode
@@ -2864,19 +3304,16 @@ function updateLabels() {
       continue;
     }
 
-
     planetData
       .planet
       .getWorldPosition(
         tempWorld
       );
 
-
     const distanceFromCamera =
       camera.position.distanceTo(
         tempWorld
       );
-
 
     if (
       planetData.labelDistance
@@ -2892,7 +3329,6 @@ function updateLabels() {
           : "none";
     }
 
-
     tempProjected
       .copy(
         tempWorld
@@ -2900,7 +3336,6 @@ function updateLabels() {
       .project(
         camera
       );
-
 
     const visible =
       tempProjected.z > -1 &&
@@ -2910,17 +3345,14 @@ function updateLabels() {
       tempProjected.y > -1.1 &&
       tempProjected.y < 1.1;
 
-
     if (
       !visible
     ) {
-
       planetData.label.style.opacity =
         "0";
 
       continue;
     }
-
 
     planetData.label.style.left =
       `${
@@ -2932,7 +3364,6 @@ function updateLabels() {
         window.innerWidth
       }px`;
 
-
     planetData.label.style.top =
       `${
         (
@@ -2942,7 +3373,6 @@ function updateLabels() {
         ) *
         window.innerHeight
       }px`;
-
 
     planetData.label.style.opacity =
       "1";
@@ -2959,41 +3389,33 @@ function animate() {
     animate
   );
 
-
   const deltaTime =
     Math.min(
       clock.getDelta(),
       0.05
     );
 
-
   updateOrbits(
     deltaTime
   );
-
 
   const isMoving =
     updateMovement(
       deltaTime
     );
 
-
   rebaseSolarSystemIfNeeded();
-
 
   updateEnergy(
     deltaTime,
     isMoving
   );
 
-
   updateSunAndEnergy(
     deltaTime
   );
 
-
   updateLabels();
-
 
   if (
     stars
@@ -3002,7 +3424,6 @@ function animate() {
       camera.position
     );
   }
-
 
   renderer.render(
     scene,
@@ -3022,18 +3443,14 @@ function startGame() {
     return;
   }
 
-
   gameStarted =
     true;
-
 
   startScreen.hidden =
     true;
 
-
   gameUI.hidden =
     false;
-
 
   renderer.domElement.focus();
 }
@@ -3050,24 +3467,20 @@ function setupControls() {
   canvas.style.touchAction =
     "none";
 
-
   const controlButtons =
     document.querySelectorAll(
       "[data-control]"
     );
-
 
   const speedButtons =
     document.querySelectorAll(
       "[data-speed]"
     );
 
-
   for (
     const button of
       speedButtons
   ) {
-
     button.addEventListener(
       "click",
       () => {
@@ -3086,7 +3499,6 @@ function setupControls() {
   uiToggle.addEventListener(
     "click",
     () => {
-
       if (
         cinematicMode
       ) {
@@ -3184,10 +3596,8 @@ function setupControls() {
     const button of
       controlButtons
   ) {
-
     const controlName =
       button.dataset.control;
-
 
     const releaseButton =
       (event) => {
@@ -3203,7 +3613,6 @@ function setupControls() {
         );
       };
 
-
     button.addEventListener(
       "pointerdown",
       (event) => {
@@ -3218,7 +3627,6 @@ function setupControls() {
           "is-pressed"
         );
 
-
         try {
           button.setPointerCapture(
             event.pointerId
@@ -3229,23 +3637,19 @@ function setupControls() {
       }
     );
 
-
     button.addEventListener(
       "pointerup",
       releaseButton
     );
-
 
     button.addEventListener(
       "pointercancel",
       releaseButton
     );
 
-
     button.addEventListener(
       "lostpointercapture",
       () => {
-
         pressedControls.delete(
           controlName
         );
@@ -3255,7 +3659,6 @@ function setupControls() {
         );
       }
     );
-
 
     button.addEventListener(
       "contextmenu",
@@ -3273,7 +3676,6 @@ function setupControls() {
   canvas.addEventListener(
     "pointerdown",
     (event) => {
-
       if (
         !gameStarted ||
         event.pointerType ===
@@ -3282,7 +3684,6 @@ function setupControls() {
       ) {
         return;
       }
-
 
       if (
         event.pointerType ===
@@ -3299,7 +3700,6 @@ function setupControls() {
           }
         );
 
-
         if (
           activeTouchPointers.size ===
           2 &&
@@ -3309,7 +3709,6 @@ function setupControls() {
           beginCreatorPinch();
           return;
         }
-
 
         if (
           activeTouchPointers.size >
@@ -3322,25 +3721,20 @@ function setupControls() {
         }
       }
 
-
       if (
         creatorPinching
       ) {
         return;
       }
 
-
       dragging =
         true;
-
 
       lastPointerX =
         event.clientX;
 
-
       lastPointerY =
         event.clientY;
-
 
       try {
         canvas.setPointerCapture(
@@ -3356,7 +3750,6 @@ function setupControls() {
   canvas.addEventListener(
     "pointermove",
     (event) => {
-
       if (
         event.pointerType ===
         "touch" &&
@@ -3375,7 +3768,6 @@ function setupControls() {
           }
         );
 
-
         if (
           activeTouchPointers.size ===
             2 &&
@@ -3387,7 +3779,6 @@ function setupControls() {
         }
       }
 
-
       if (
         !dragging ||
         !gameStarted ||
@@ -3396,34 +3787,27 @@ function setupControls() {
         return;
       }
 
-
       const deltaX =
         event.clientX -
         lastPointerX;
-
 
       const deltaY =
         event.clientY -
         lastPointerY;
 
-
       lastPointerX =
         event.clientX;
 
-
       lastPointerY =
         event.clientY;
-
 
       yaw -=
         deltaX *
         lookSensitivity;
 
-
       pitch -=
         deltaY *
         lookSensitivity;
-
 
       pitch =
         THREE.MathUtils.clamp(
@@ -3436,7 +3820,6 @@ function setupControls() {
             0.05
         );
 
-
       camera.rotation.set(
         pitch,
         yaw,
@@ -3448,7 +3831,6 @@ function setupControls() {
 
   const stopDragging =
     (event) => {
-
       if (
         event &&
         event.pointerType ===
@@ -3466,7 +3848,6 @@ function setupControls() {
         }
       }
 
-
       if (
         activeTouchPointers.size ===
         0
@@ -3482,12 +3863,10 @@ function setupControls() {
     stopDragging
   );
 
-
   canvas.addEventListener(
     "pointercancel",
     stopDragging
   );
-
 
   canvas.addEventListener(
     "lostpointercapture",
@@ -3502,23 +3881,19 @@ function setupControls() {
   window.addEventListener(
     "keydown",
     (event) => {
-
       const key =
         event.key.toLowerCase();
-
 
       const allControlKeys =
         Object.values(
           controlKeys
         ).flat();
 
-
       if (
         allControlKeys.includes(
           key
         )
       ) {
-
         event.preventDefault();
 
         pressedKeys.add(
@@ -3532,7 +3907,6 @@ function setupControls() {
   window.addEventListener(
     "keyup",
     (event) => {
-
       pressedKeys.delete(
         event.key.toLowerCase()
       );
@@ -3543,11 +3917,9 @@ function setupControls() {
   window.addEventListener(
     "blur",
     () => {
-
       pressedControls.clear();
 
       pressedKeys.clear();
-
 
       controlButtons.forEach(
         (button) => {
@@ -3556,7 +3928,6 @@ function setupControls() {
           );
         }
       );
-
 
       resetCreatorPinch();
     }
@@ -3586,12 +3957,10 @@ try {
 } catch (
   error
 ) {
-
   console.error(
     "Could not initialize the Solar System game:",
     error
   );
-
 
   showError(
     "The 3D scene could not be initialized. Please check that WebGL is available and reload the page."
