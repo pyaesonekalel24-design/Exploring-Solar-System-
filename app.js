@@ -39,45 +39,26 @@ let sunGlow = null;
 
 let gameStarted = false;
 
-let helperUIVisible = true;
+
+/* =========================================================
+   UI STATE
+   ========================================================= */
+
+let uiMenuVisible = false;
 
 let planetLabelsVisible = true;
+
 let orbitLinesVisible = true;
+
+let distanceVisible = true;
+
+let cinematicMode = false;
 
 let currentSpeedMode = "chill";
 
 
 /* =========================================================
    FLOATING ORIGIN
-   =========================================================
-
-   The Solar System can be millions of game units wide.
-
-   We do NOT want the player camera sitting at enormous
-   coordinates such as:
-
-       x = 4,000,000
-
-   while trying to move only:
-
-       120 units / second
-
-   That can cause numerical precision problems.
-
-   Instead, the whole Solar System is periodically shifted
-   around the player.
-
-   The player therefore stays close to:
-
-       x = 0
-       y = 0
-       z = 0
-
-   while the relative distance between every object remains
-   exactly the same.
-
-   This does NOT change astronomical distances.
-   It only changes the render origin.
    ========================================================= */
 
 const FLOATING_ORIGIN_THRESHOLD = 5_000;
@@ -155,11 +136,9 @@ function beginCreatorPinch() {
     return;
   }
 
-  creatorPinching =
-    true;
+  creatorPinching = true;
 
-  dragging =
-    false;
+  dragging = false;
 
   pinchStartDistance =
     getPointerDistance(
@@ -222,8 +201,7 @@ function endCreatorPinch() {
     activeTouchPointers.size <
     2
   ) {
-    creatorPinching =
-      false;
+    creatorPinching = false;
   }
 }
 
@@ -231,11 +209,9 @@ function endCreatorPinch() {
 function resetCreatorPinch() {
   activeTouchPointers.clear();
 
-  creatorPinching =
-    false;
+  creatorPinching = false;
 
-  dragging =
-    false;
+  dragging = false;
 }
 
 
@@ -250,19 +226,6 @@ const ENERGY_RECHARGE_RATE = 18;
 
 /* =========================================================
    SPEED SYSTEM
-   =========================================================
-
-   CHILL:
-   - Remains exactly 120 world units / second.
-   - No hidden distance multiplier.
-   - No planet-dependent speed.
-   - Floating-origin keeps this speed stable everywhere.
-
-   CREATOR:
-   - Remains exactly 120.
-
-   SUPERMAN:
-   - 750,000 because the Solar System itself is 3× larger.
    ========================================================= */
 
 const CHILL_SPEED = 120;
@@ -652,15 +615,6 @@ function rebaseSolarSystemIfNeeded() {
     return;
   }
 
-  /*
-   * Move the entire Solar System by exactly the amount
-   * the camera is away from the local origin.
-   *
-   * Then put the camera back at the origin.
-   *
-   * Relative positions do not change.
-   */
-
   tempShift.copy(
     camera.position
   );
@@ -704,6 +658,12 @@ function updateSpeedButtons() {
       }
     );
 
+  gameUI.classList.toggle(
+    "superman-mode",
+    currentSpeedMode ===
+      "superman"
+  );
+
   updateCreatorLabelMode();
 }
 
@@ -725,13 +685,6 @@ function setSpeedMode(mode) {
   currentSpeedMode =
     mode;
 
-  /*
-   * Do not allow a previous Superman acceleration state
-   * to make Chill suddenly continue at Superman speed.
-   *
-   * Chill and Creator immediately target 120.
-   */
-
   if (
     mode === "chill" ||
     mode === "creator"
@@ -749,7 +702,8 @@ function updateCreatorLabelMode() {
     "creator-enabled",
     planetLabelsVisible &&
       currentSpeedMode ===
-        "creator"
+        "creator" &&
+      !cinematicMode
   );
 }
 
@@ -808,13 +762,6 @@ function updateMovementSpeed(
   const targetSpeed =
     mode.speed;
 
-  /*
-   * Chill and Creator should always be exactly 120.
-   *
-   * This avoids carrying any previous acceleration state
-   * from Superman into the slower modes.
-   */
-
   if (
     currentSpeedMode ===
       "chill" ||
@@ -862,11 +809,16 @@ function updateVisualToggleButtons() {
   const orbitButton =
     $("orbits-toggle");
 
+  const distanceButton =
+    $("distance-toggle");
+
   if (labelButton) {
-    labelButton.textContent =
+    labelButton.querySelector(
+      ".toggle-state"
+    ).textContent =
       planetLabelsVisible
-        ? "NAMES ON"
-        : "NAMES OFF";
+        ? "ON"
+        : "OFF";
 
     labelButton.setAttribute(
       "aria-pressed",
@@ -875,14 +827,47 @@ function updateVisualToggleButtons() {
   }
 
   if (orbitButton) {
-    orbitButton.textContent =
+    orbitButton.querySelector(
+      ".toggle-state"
+    ).textContent =
       orbitLinesVisible
-        ? "ORBITS ON"
-        : "ORBITS OFF";
+        ? "ON"
+        : "OFF";
 
     orbitButton.setAttribute(
       "aria-pressed",
       String(orbitLinesVisible)
+    );
+  }
+
+  if (distanceButton) {
+    distanceButton.querySelector(
+      ".toggle-state"
+    ).textContent =
+      distanceVisible
+        ? "ON"
+        : "OFF";
+
+    distanceButton.setAttribute(
+      "aria-pressed",
+      String(distanceVisible)
+    );
+  }
+
+  const cinematicButton =
+    $("cinematic-toggle");
+
+  if (cinematicButton) {
+    cinematicButton.querySelector(
+      ".toggle-state"
+    ).textContent =
+      cinematicMode
+        ? "ON"
+        : "OFF";
+
+    cinematicButton.setAttribute(
+      "aria-pressed",
+      String(cinematicMode)
     );
   }
 }
@@ -914,6 +899,98 @@ function setOrbitLinesVisible(
   }
 
   updateVisualToggleButtons();
+}
+
+
+function setDistanceVisible(
+  visible
+) {
+  distanceVisible =
+    visible;
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (
+      planetData.labelDistance
+    ) {
+      planetData.labelDistance.style.display =
+        distanceVisible
+          ? ""
+          : "none";
+    }
+  }
+
+  updateVisualToggleButtons();
+}
+
+
+function setCinematicMode(
+  enabled
+) {
+  cinematicMode =
+    enabled;
+
+  if (
+    cinematicMode
+  ) {
+    uiMenuVisible =
+      false;
+
+    $("visual-panel").hidden =
+      true;
+
+    uiToggle.setAttribute(
+      "aria-expanded",
+      "false"
+    );
+  }
+
+  gameUI.classList.toggle(
+    "cinematic-mode",
+    cinematicMode
+  );
+
+  labelLayer.classList.toggle(
+    "cinematic-hidden",
+    cinematicMode
+  );
+
+  updateVisualToggleButtons();
+  updateCreatorLabelMode();
+}
+
+
+/* =========================================================
+   UI MENU
+   ========================================================= */
+
+function setUIMenuVisible(
+  visible
+) {
+  if (
+    cinematicMode &&
+    visible
+  ) {
+    setCinematicMode(
+      false
+    );
+  }
+
+  uiMenuVisible =
+    visible;
+
+  const visualPanel =
+    $("visual-panel");
+
+  visualPanel.hidden =
+    !uiMenuVisible;
+
+  uiToggle.setAttribute(
+    "aria-expanded",
+    String(uiMenuVisible)
+  );
 }
 
 
@@ -1096,11 +1173,6 @@ function createSunSprite() {
       })
     );
 
-  /*
-   * The sprite is a child of the Solar System root,
-   * so its local position is the Sun's local origin.
-   */
-
   sunSprite.position.set(
     0,
     0,
@@ -1270,6 +1342,48 @@ function createOrbitLine(
 
 
 /* =========================================================
+   DISTANCE FORMATTING
+   ========================================================= */
+
+function formatDistance(
+  distanceInGameUnits
+) {
+  const kilometers =
+    distanceInGameUnits /
+    (
+      GAME_UNITS_PER_KM *
+      SOLAR_SYSTEM_SCALE
+    );
+
+  if (
+    kilometers < 1
+  ) {
+    return `${kilometers.toFixed(1)} km`;
+  }
+
+  if (
+    kilometers < 1_000
+  ) {
+    return `${Math.round(kilometers)} km`;
+  }
+
+  if (
+    kilometers < 1_000_000
+  ) {
+    return `${(kilometers / 1_000).toFixed(1)}M km`;
+  }
+
+  if (
+    kilometers < 1_000_000_000
+  ) {
+    return `${(kilometers / 1_000_000).toFixed(2)}B km`;
+  }
+
+  return `${(kilometers / 1_000_000_000).toFixed(2)}T km`;
+}
+
+
+/* =========================================================
    PLANET LABEL
    ========================================================= */
 
@@ -1285,8 +1399,39 @@ function createLabel(
   label.className =
     "planet-label";
 
-  label.textContent =
+
+  const nameElement =
+    document.createElement(
+      "span"
+    );
+
+  nameElement.className =
+    "planet-label-name";
+
+  nameElement.textContent =
     name;
+
+
+  const distanceElement =
+    document.createElement(
+      "span"
+    );
+
+  distanceElement.className =
+    "planet-label-distance";
+
+  distanceElement.textContent =
+    "";
+
+
+  label.appendChild(
+    nameElement
+  );
+
+  label.appendChild(
+    distanceElement
+  );
+
 
   label.addEventListener(
     "pointerdown",
@@ -1302,6 +1447,7 @@ function createLabel(
       event.stopPropagation();
     }
   );
+
 
   label.addEventListener(
     "click",
@@ -1322,9 +1468,15 @@ function createLabel(
     }
   );
 
+
   labelLayer.appendChild(
     label
   );
+
+
+  planetData.labelDistance =
+    distanceElement;
+
 
   return label;
 }
@@ -1381,12 +1533,6 @@ function createPlanet(data) {
     periapsisGroup
   );
 
-  /*
-   * IMPORTANT:
-   *
-   * Planet systems now live inside the floating-origin
-   * Solar System root instead of directly inside scene.
-   */
 
   solarSystemRoot.add(
     ascendingNodeGroup
@@ -1558,17 +1704,6 @@ function createPlanet(data) {
   );
 
 
-  /*
-   * REAL ORBITAL PERIOD
-   *
-   * Time remains unchanged.
-   *
-   * Spatial distance is 3× larger.
-   *
-   * Therefore the linear orbital speed naturally
-   * becomes 3× larger while the period remains correct.
-   */
-
   const orbitalPeriodSeconds =
     data.orbitalPeriodDays *
     SECONDS_PER_DAY;
@@ -1581,12 +1716,6 @@ function createPlanet(data) {
     ) *
     SIMULATION_TIME_MULTIPLIER;
 
-
-  /*
-   * REAL ROTATION PERIOD
-   *
-   * Angular spin remains unchanged.
-   */
 
   const rotationPeriodSeconds =
     Math.abs(
@@ -1633,6 +1762,9 @@ function createPlanet(data) {
     label:
       null,
 
+    labelDistance:
+      null,
+
     radius:
       planetRadius
   };
@@ -1664,14 +1796,6 @@ function createSolarSystem() {
       0x050711
     );
 
-
-  /*
-   * Everything belonging to the actual Solar System goes
-   * inside this root.
-   *
-   * Moving this root is what gives us floating-origin
-   * behavior.
-   */
 
   solarSystemRoot =
     new THREE.Group();
@@ -1915,11 +2039,6 @@ function createSolarSystem() {
   }
 
 
-  /*
-   * Immediately establish a stable floating-origin
-   * around the starting player position.
-   */
-
   if (
     camera.position.length() >
     FLOATING_ORIGIN_THRESHOLD
@@ -1955,8 +2074,8 @@ function createSolarSystem() {
 
   updateEnergyDisplay();
 
-  setHelperVisibility(
-    true
+  setUIMenuVisible(
+    false
   );
 
   animate();
@@ -2082,17 +2201,6 @@ function updateMovement(
     new THREE.Vector3();
 
 
-  /*
-   * IMPORTANT:
-   *
-   * Direction is calculated from camera orientation only.
-   *
-   * Camera position is irrelevant.
-   *
-   * Therefore floating-origin rebasing cannot change
-   * the direction or speed of the player.
-   */
-
   if (
     forwardAmount !== 0
   ) {
@@ -2158,19 +2266,6 @@ function updateMovement(
     deltaTime
   );
 
-
-  /*
-   * EXACT MOVEMENT:
-   *
-   * Chill:
-   *     120 units/sec
-   *
-   * Creator:
-   *     120 units/sec
-   *
-   * Superman:
-   *     750,000 units/sec
-   */
 
   camera.position.addScaledVector(
     movement,
@@ -2533,15 +2628,6 @@ function updateOrbits(
       solarPlanets
   ) {
 
-    /*
-     * Orbital PERIOD stays real-time.
-     *
-     * The orbit radius is 3× larger.
-     *
-     * Therefore the linear orbital movement is also
-     * automatically 3× larger.
-     */
-
     planetData.meanAnomaly +=
       planetData.meanMotion *
       deltaTime;
@@ -2573,10 +2659,6 @@ function updateOrbits(
         )
       );
 
-
-    /*
-     * Rotation period stays real-time.
-     */
 
     planetData.planet.rotation.y +=
       planetData.spinSpeed *
@@ -2704,14 +2786,6 @@ function teleportToPlanet(
   );
 
 
-  /*
-   * Teleporting can put the camera thousands of units away
-   * from the current floating origin.
-   *
-   * Rebase immediately so movement starts from a stable
-   * numerical position.
-   */
-
   rebaseSolarSystemIfNeeded();
 }
 
@@ -2728,7 +2802,8 @@ function updateLabels() {
   ) {
 
     if (
-      !planetLabelsVisible
+      !planetLabelsVisible ||
+      cinematicMode
     ) {
       planetData.label.style.opacity =
         "0";
@@ -2742,6 +2817,27 @@ function updateLabels() {
       .getWorldPosition(
         tempWorld
       );
+
+
+    const distanceFromCamera =
+      camera.position.distanceTo(
+        tempWorld
+      );
+
+
+    if (
+      planetData.labelDistance
+    ) {
+      planetData.labelDistance.textContent =
+        formatDistance(
+          distanceFromCamera
+        );
+
+      planetData.labelDistance.style.display =
+        distanceVisible
+          ? ""
+          : "none";
+    }
 
 
     tempProjected
@@ -2802,35 +2898,6 @@ function updateLabels() {
 
 
 /* =========================================================
-   UI TOGGLE
-   ========================================================= */
-
-function setHelperVisibility(
-  visible
-) {
-  helperUIVisible =
-    visible;
-
-  gameUI.classList.toggle(
-    "ui-hidden",
-    !visible
-  );
-
-  uiToggle.textContent =
-    visible
-      ? "UI OFF"
-      : "UI ON";
-
-  uiToggle.setAttribute(
-    "aria-pressed",
-    String(!visible)
-  );
-
-  updateCreatorLabelMode();
-}
-
-
-/* =========================================================
    ANIMATION LOOP
    ========================================================= */
 
@@ -2857,20 +2924,6 @@ function animate() {
       deltaTime
     );
 
-
-  /*
-   * Rebase AFTER movement.
-   *
-   * This is important:
-   *
-   * 1. Player moves at exact Chill/Superman speed.
-   * 2. If player gets too far from origin, the whole
-   *    Solar System shifts together.
-   * 3. Player returns to a numerically stable position.
-   *
-   * The player therefore never receives a speed boost
-   * or slowdown from the rebase.
-   */
 
   rebaseSolarSystemIfNeeded();
 
@@ -2973,11 +3026,30 @@ function setupControls() {
   }
 
 
+  /* =======================================================
+     UI MENU
+     ======================================================= */
+
   uiToggle.addEventListener(
     "click",
     () => {
-      setHelperVisibility(
-        !helperUIVisible
+
+      if (
+        cinematicMode
+      ) {
+        setCinematicMode(
+          false
+        );
+
+        setUIMenuVisible(
+          true
+        );
+
+        return;
+      }
+
+      setUIMenuVisible(
+        !uiMenuVisible
       );
     }
   );
@@ -2988,6 +3060,12 @@ function setupControls() {
 
   const orbitsToggle =
     $("orbits-toggle");
+
+  const distanceToggle =
+    $("distance-toggle");
+
+  const cinematicToggle =
+    $("cinematic-toggle");
 
 
   labelsToggle.addEventListener(
@@ -3005,6 +3083,26 @@ function setupControls() {
     () => {
       setOrbitLinesVisible(
         !orbitLinesVisible
+      );
+    }
+  );
+
+
+  distanceToggle.addEventListener(
+    "click",
+    () => {
+      setDistanceVisible(
+        !distanceVisible
+      );
+    }
+  );
+
+
+  cinematicToggle.addEventListener(
+    "click",
+    () => {
+      setCinematicMode(
+        !cinematicMode
       );
     }
   );
