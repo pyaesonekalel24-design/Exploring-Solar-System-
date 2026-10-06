@@ -339,7 +339,11 @@ button {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 6px;
 
-  width: min(390px, calc(100% - 120px));
+  /*
+   * Extra right breathing room prevents the CREATOR button
+   * from ever colliding with the UI button.
+   */
+  width: min(390px, calc(100% - 150px));
   height: 34px;
 
   transform: translateX(-50%);
@@ -915,7 +919,7 @@ button {
   #speed-panel {
     top: max(14px, env(safe-area-inset-top));
 
-    width: min(330px, calc(100% - 110px));
+    width: min(330px, calc(100% - 150px));
 
     gap: 5px;
   }
@@ -984,7 +988,7 @@ button {
 
   #speed-panel {
     top: max(12px, env(safe-area-inset-top));
-    width: min(300px, calc(100% - 95px));
+    width: min(280px, calc(100% - 150px));
   }
 
   .speed-button {
