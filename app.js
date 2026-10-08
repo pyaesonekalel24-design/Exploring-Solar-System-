@@ -365,94 +365,6 @@ const COLLISION_MARGIN =
 
 
 /* =========================================================
-   DISTANCE-BASED VISUAL BODY BOOST
-   =========================================================
-
-   This is render-only.
-
-   Physical radii, collision radii, orbital distances,
-   orbital mechanics, Moon geometry and lighting are
-   completely untouched.
-
-   At 37,000 game units and closer:
-       TRUE physical visual size = 1.0x
-
-   Beyond 37,000:
-       planets gradually become easier to see.
-
-   At 1,500,000 game units:
-       maximum visual readability boost = 1.65x
-
-   The transition is logarithmic and smooth so there is
-   no obvious "switch" when crossing the 37,000 boundary.
-   ========================================================= */
-
-const VISUAL_BOOST_END_DISTANCE =
-  37_000;
-
-const VISUAL_BOOST_FULL_DISTANCE =
-  1_500_000;
-
-const VISUAL_BOOST_MAX_SCALE =
-  1.65;
-
-
-function getVisualBodyScale(
-  distance
-) {
-  if (
-    distance <=
-    VISUAL_BOOST_END_DISTANCE
-  ) {
-    return 1;
-  }
-
-  const logStart =
-    Math.log(
-      VISUAL_BOOST_END_DISTANCE
-    );
-
-  const logEnd =
-    Math.log(
-      VISUAL_BOOST_FULL_DISTANCE
-    );
-
-  const logDistance =
-    Math.log(
-      Math.max(
-        distance,
-        VISUAL_BOOST_END_DISTANCE
-      )
-    );
-
-  const t =
-    THREE.MathUtils.clamp(
-      (
-        logDistance -
-        logStart
-      ) /
-      (
-        logEnd -
-        logStart
-      ),
-      0,
-      1
-    );
-
-  const smoothT =
-    t *
-    t *
-    (3 - 2 * t);
-
-  return THREE.MathUtils.lerp(
-    1,
-    VISUAL_BOOST_MAX_SCALE,
-    smoothT
-  );
-}
-
-
-/* =========================================================
    TEXTURE SYSTEM
    =========================================================
 
@@ -596,6 +508,200 @@ const SOLAR_SYSTEM_SCALE =
 
 
 /* =========================================================
+   VISUAL SIZE ASSIST
+   =========================================================
+
+   IMPORTANT:
+   This system changes ONLY the rendered visual scale of
+   individual bodies.
+
+   It does NOT change:
+   - orbital distance
+   - physical radius used for collision
+   - Moon orbit
+   - Moon phase
+   - lighting
+   - teleport stand-off distance
+   - astronomical calculations
+
+   Each body independently checks its own distance from
+   the camera.
+
+   At or below 37,000 units:
+     normal 1.0x visual size
+
+   Above 37,000 units:
+     smooth visual enlargement begins
+
+   At 1,500,000 units and beyond:
+     maximum 1.65x visual size
+   ========================================================= */
+
+const VISUAL_ASSIST_START_DISTANCE =
+  37_000;
+
+const VISUAL_ASSIST_MAX_DISTANCE =
+  1_500_000;
+
+const VISUAL_ASSIST_MAX_SCALE =
+  1.65;
+
+
+function getVisualAssistScale(
+  distance
+) {
+  if (
+    distance <=
+    VISUAL_ASSIST_START_DISTANCE
+  ) {
+    return 1;
+  }
+
+  const clampedDistance =
+    THREE.MathUtils.clamp(
+      distance,
+
+      VISUAL_ASSIST_START_DISTANCE,
+
+      VISUAL_ASSIST_MAX_DISTANCE
+    );
+
+  const logStart =
+    Math.log(
+      VISUAL_ASSIST_START_DISTANCE
+    );
+
+  const logEnd =
+    Math.log(
+      VISUAL_ASSIST_MAX_DISTANCE
+    );
+
+  const logDistance =
+    Math.log(
+      clampedDistance
+    );
+
+  const normalizedDistance =
+    THREE.MathUtils.clamp(
+      (
+        logDistance -
+        logStart
+      ) /
+      (
+        logEnd -
+        logStart
+      ),
+
+      0,
+
+      1
+    );
+
+  /*
+   * Smoothstep gives us a soft transition instead of a
+   * noticeable size pop when crossing 37,000 units.
+   */
+  const smoothDistance =
+    normalizedDistance *
+    normalizedDistance *
+    (
+      3 -
+      2 *
+      normalizedDistance
+    );
+
+  return THREE.MathUtils.lerp(
+    1,
+    VISUAL_ASSIST_MAX_SCALE,
+    smoothDistance
+  );
+}
+
+
+function updateVisualAssistScale() {
+  if (
+    !camera
+  ) {
+    return;
+  }
+
+  /*
+   * Every solar-system body gets evaluated independently.
+   *
+   * This means:
+   *
+   * 20,000 from Jupiter -> normal Jupiter
+   * 50,000 from Jupiter -> enlarged Jupiter
+   *
+   * while another planet can have a completely different
+   * visual scale at the exact same moment.
+   */
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (
+      planetData.isSun ||
+      !planetData.planet
+    ) {
+      continue;
+    }
+
+    planetData
+      .planet
+      .getWorldPosition(
+        tempWorld
+      );
+
+    const distance =
+      camera.position.distanceTo(
+        tempWorld
+      );
+
+    const visualScale =
+      getVisualAssistScale(
+        distance
+      );
+
+    planetData
+      .planet
+      .scale
+      .setScalar(
+        visualScale
+      );
+  }
+
+  /*
+   * The Moon is not stored inside solarPlanets, so it gets
+   * its own independent visual-assist check.
+   */
+  if (
+    moonMesh
+  ) {
+    moonMesh.getWorldPosition(
+      tempWorld
+    );
+
+    const moonDistance =
+      camera.position.distanceTo(
+        tempWorld
+      );
+
+    const moonVisualScale =
+      getVisualAssistScale(
+        moonDistance
+      );
+
+    moonMesh
+      .scale
+      .setScalar(
+        moonVisualScale
+      );
+  }
+}
+
+
+/* =========================================================
    REAL-TIME ORBITS
    ========================================================= */
 
@@ -645,20 +751,12 @@ const MOON_ORBIT_PERIOD_DAYS =
 
 /*
  * Astronomical clock / date state.
- * The browser's Date object is the host device clock.
- * UTC is used internally so the same instant produces
- * the same Solar System state on every device.
+ * The browser's Date object is the host device clock.  We use UTC
+ * internally so the same instant produces the same Solar System state
+ * on every device, regardless of local timezone.
  */
-
 const J2000_EPOCH_MS =
-  Date.UTC(
-    2000,
-    0,
-    1,
-    12,
-    0,
-    0
-  );
+  Date.UTC(2000, 0, 1, 12, 0, 0);
 
 const DAY_MS =
   86_400_000;
@@ -696,8 +794,9 @@ const MOON_MEAN_MOTION_DEGREES_PER_DAY =
 
 /*
  * Meeus new-moon model.
+ * This gives us a real astronomical phase timestamp rather than
+ * guessing a 29.5-day cycle from a hard-coded game angle.
  */
-
 const NEW_MOON_BASE_JD =
   2451550.09765;
 
@@ -705,44 +804,31 @@ const SYNODIC_MONTH_DAYS =
   29.530588853;
 
 
-function julianDateFromDate(
-  date
-) {
+function julianDateFromDate(date) {
   return (
     2440587.5 +
-    date.getTime() /
-      DAY_MS
+    date.getTime() / DAY_MS
   );
 }
 
 
-function dateFromJulianDate(
-  julianDate
-) {
+function dateFromJulianDate(julianDate) {
   return new Date(
     (
       julianDate -
       2440587.5
-    ) *
-    DAY_MS
+    ) * DAY_MS
   );
 }
 
 
-function getMeeusNewMoonJulianDate(
-  k
-) {
+function getMeeusNewMoonJulianDate(k) {
   const T =
     k / 1236.85;
 
-  const T2 =
-    T * T;
-
-  const T3 =
-    T2 * T;
-
-  const T4 =
-    T3 * T;
+  const T2 = T * T;
+  const T3 = T2 * T;
+  const T4 = T3 * T;
 
   const E =
     1 -
@@ -784,94 +870,35 @@ function getMeeusNewMoonJulianDate(
     );
 
   const correction =
-    -0.40720 *
-      Math.sin(MPrime) +
-
-    0.17241 *
-      E *
-      Math.sin(M) +
-
-    0.01608 *
-      Math.sin(2 * MPrime) +
-
-    0.01039 *
-      Math.sin(2 * F) +
-
-    0.00739 *
-      E *
-      Math.sin(MPrime - M) -
-
-    0.00514 *
-      E *
-      Math.sin(MPrime + M) +
-
-    0.00208 *
-      E *
-      E *
-      Math.sin(2 * M) -
-
-    0.00111 *
-      Math.sin(MPrime - 2 * F) -
-
-    0.00057 *
-      Math.sin(MPrime + 2 * F) +
-
-    0.00056 *
-      E *
-      Math.sin(2 * MPrime + M) -
-
-    0.00042 *
-      Math.sin(3 * MPrime) -
-
-    0.00042 *
-      E *
-      Math.sin(M + 2 * F) -
-
-    0.00038 *
-      E *
-      Math.sin(M - 2 * F) +
-
-    0.00024 *
-      E *
-      Math.sin(2 * MPrime - M) -
-
-    0.00017 *
-      Math.sin(Omega) -
-
-    0.00007 *
-      Math.sin(MPrime + 2 * M) +
-
-    0.00004 *
-      Math.sin(2 * MPrime - 2 * F) +
-
-    0.00004 *
-      Math.sin(3 * M) +
-
-    0.00003 *
-      Math.sin(MPrime + M - 2 * F) +
-
-    0.00003 *
-      Math.sin(2 * MPrime + 2 * F) -
-
-    0.00003 *
-      Math.sin(MPrime + M + 2 * F) +
-
-    0.00003 *
-      Math.sin(MPrime - M + 2 * F) -
-
-    0.00002 *
-      Math.sin(MPrime - M - 2 * F) -
-
-    0.00002 *
-      Math.sin(3 * MPrime + M) +
-
-    0.00002 *
-      Math.sin(4 * MPrime);
+    -0.40720 * Math.sin(MPrime) +
+    0.17241 * E * Math.sin(M) +
+    0.01608 * Math.sin(2 * MPrime) +
+    0.01039 * Math.sin(2 * F) +
+    0.00739 * E * Math.sin(MPrime - M) -
+    0.00514 * E * Math.sin(MPrime + M) +
+    0.00208 * E * E * Math.sin(2 * M) -
+    0.00111 * Math.sin(MPrime - 2 * F) -
+    0.00057 * Math.sin(MPrime + 2 * F) +
+    0.00056 * E * Math.sin(2 * MPrime + M) -
+    0.00042 * Math.sin(3 * MPrime) -
+    0.00042 * E * Math.sin(M + 2 * F) -
+    0.00038 * E * Math.sin(M - 2 * F) +
+    0.00024 * E * Math.sin(2 * MPrime - M) -
+    0.00017 * Math.sin(Omega) -
+    0.00007 * Math.sin(MPrime + 2 * M) +
+    0.00004 * Math.sin(2 * MPrime - 2 * F) +
+    0.00004 * Math.sin(3 * M) +
+    0.00003 * Math.sin(MPrime + M - 2 * F) +
+    0.00003 * Math.sin(2 * MPrime + 2 * F) -
+    0.00003 * Math.sin(MPrime + M + 2 * F) +
+    0.00003 * Math.sin(MPrime - M + 2 * F) -
+    0.00002 * Math.sin(MPrime - M - 2 * F) -
+    0.00002 * Math.sin(3 * MPrime + M) +
+    0.00002 * Math.sin(4 * MPrime);
 
   return (
     NEW_MOON_BASE_JD +
-    SYNODIC_MONTH_DAYS *
-      k +
+    SYNODIC_MONTH_DAYS * k +
     0.0001337 * T2 -
     0.000000150 * T3 +
     0.00000000073 * T4 +
@@ -880,13 +907,9 @@ function getMeeusNewMoonJulianDate(
 }
 
 
-function getLunarPhaseState(
-  date
-) {
+function getLunarPhaseState(date) {
   const julianDate =
-    julianDateFromDate(
-      date
-    );
+    julianDateFromDate(date);
 
   const approximateK =
     Math.floor(
@@ -960,12 +983,7 @@ function getLunarPhaseState(
     phaseAngle,
 
     illuminationFraction:
-      (
-        1 -
-        Math.cos(
-          phaseAngle
-        )
-      ) *
+      (1 - Math.cos(phaseAngle)) *
       0.5,
 
     previousNewMoon:
@@ -1005,14 +1023,11 @@ function getAstronomicalDays(
   return (
     date.getTime() -
     J2000_EPOCH_MS
-  ) /
-  DAY_MS;
+  ) / DAY_MS;
 }
 
 
-function normalizeRadians(
-  angle
-) {
+function normalizeRadians(angle) {
   const fullTurn =
     Math.PI * 2;
 
@@ -1028,9 +1043,7 @@ function normalizeRadians(
 }
 
 
-function normalizeDegrees(
-  angle
-) {
+function normalizeDegrees(angle) {
   angle %= 360;
 
   if (
@@ -1064,7 +1077,7 @@ function getPlanetMeanAnomalyAtDate(
   return normalizeRadians(
     startingMeanAnomaly +
     meanMotionPerDay *
-      days
+    days
   );
 }
 
@@ -1085,17 +1098,13 @@ function solveKeplerMeanAnomaly(
       (
         eccentricAnomaly -
         eccentricity *
-          Math.sin(
-            eccentricAnomaly
-          ) -
+          Math.sin(eccentricAnomaly) -
         meanAnomaly
       ) /
       (
         1 -
         eccentricity *
-          Math.cos(
-            eccentricAnomaly
-          )
+          Math.cos(eccentricAnomaly)
       );
   }
 
@@ -1113,7 +1122,7 @@ function getMoonEclipticPosition(
       normalizeDegrees(
         MOON_NODE_AT_J2000_DEGREES +
         MOON_NODE_RATE_DEGREES_PER_DAY *
-          daysSinceJ2000
+        daysSinceJ2000
       )
     );
 
@@ -1122,7 +1131,7 @@ function getMoonEclipticPosition(
       normalizeDegrees(
         MOON_PERIGEE_AT_J2000_DEGREES +
         MOON_PERIGEE_RATE_DEGREES_PER_DAY *
-          daysSinceJ2000
+        daysSinceJ2000
       )
     );
 
@@ -1131,7 +1140,7 @@ function getMoonEclipticPosition(
       normalizeDegrees(
         MOON_MEAN_ANOMALY_AT_J2000_DEGREES +
         MOON_MEAN_MOTION_DEGREES_PER_DAY *
-          daysSinceJ2000
+        daysSinceJ2000
       )
     );
 
@@ -1147,9 +1156,7 @@ function getMoonEclipticPosition(
   const xOrbital =
     semiMajorAxis *
     (
-      Math.cos(
-        eccentricAnomaly
-      ) -
+      Math.cos(eccentricAnomaly) -
       MOON_ECCENTRICITY
     );
 
@@ -1158,41 +1165,23 @@ function getMoonEclipticPosition(
     Math.sqrt(
       1 -
       MOON_ECCENTRICITY *
-        MOON_ECCENTRICITY
+      MOON_ECCENTRICITY
     ) *
-    Math.sin(
-      eccentricAnomaly
-    );
+    Math.sin(eccentricAnomaly);
 
   const xPerifocal =
-    xOrbital *
-      Math.cos(
-        argumentOfPerigee
-      ) -
-    yOrbital *
-      Math.sin(
-        argumentOfPerigee
-      );
+    xOrbital * Math.cos(argumentOfPerigee) -
+    yOrbital * Math.sin(argumentOfPerigee);
 
   const yPerifocal =
-    xOrbital *
-      Math.sin(
-        argumentOfPerigee
-      ) +
-    yOrbital *
-      Math.cos(
-        argumentOfPerigee
-      );
+    xOrbital * Math.sin(argumentOfPerigee) +
+    yOrbital * Math.cos(argumentOfPerigee);
 
   const cosNode =
-    Math.cos(
-      ascendingNode
-    );
+    Math.cos(ascendingNode);
 
   const sinNode =
-    Math.sin(
-      ascendingNode
-    );
+    Math.sin(ascendingNode);
 
   const cosInclination =
     Math.cos(
@@ -1209,22 +1198,18 @@ function getMoonEclipticPosition(
     );
 
   const rawX =
-    xPerifocal *
-      cosNode -
-    yPerifocal *
-      sinNode *
-      cosInclination;
+    xPerifocal * cosNode -
+    yPerifocal * sinNode *
+    cosInclination;
 
   const rawY =
     yPerifocal *
     sinInclination;
 
   const rawZ =
-    xPerifocal *
-      sinNode +
-    yPerifocal *
-      cosNode *
-      cosInclination;
+    xPerifocal * sinNode +
+    yPerifocal * cosNode *
+    cosInclination;
 
   const rawDistance =
     Math.sqrt(
@@ -1236,65 +1221,46 @@ function getMoonEclipticPosition(
   const rawLatitude =
     Math.asin(
       THREE.MathUtils.clamp(
-        rawY /
-          rawDistance,
+        rawY / rawDistance,
         -1,
         1
       )
     );
 
-  const rawLongitude =
-    Math.atan2(
-      rawZ,
-      rawX
-    );
+  /*
+   * The phase equation controls the Moon's longitude relative to
+   * the Sun, while the orbital model supplies realistic distance
+   * and a small 5.1°-class inclination above/below the ecliptic.
+   */
+  const targetLongitude =
+    sunEclipticLongitude +
+    phaseAngle;
 
-  const phaseLongitude =
-    THREE.MathUtils.degToRad(
-      normalizeDegrees(
-        THREE.MathUtils.radToDeg(
-          sunEclipticLongitude +
-          phaseAngle
-        )
-      )
-    );
-
-  const longitudeCorrection =
-    normalizeRadians(
-      phaseLongitude -
-      rawLongitude
-    );
-
-  const correctedX =
+  const distance =
     rawDistance *
-    Math.cos(
-      rawLatitude
-    ) *
-    Math.cos(
-      rawLongitude +
-      longitudeCorrection
-    );
-
-  const correctedY =
-    rawDistance *
-    Math.sin(
-      rawLatitude
-    );
-
-  const correctedZ =
-    rawDistance *
-    Math.cos(
-      rawLatitude
-    ) *
-    Math.sin(
-      rawLongitude +
-      longitudeCorrection
-    );
+    EARTH_GAME_RADIUS;
 
   return new THREE.Vector3(
-    correctedX,
-    correctedY,
-    correctedZ
+    distance *
+      Math.cos(rawLatitude) *
+      Math.cos(targetLongitude),
+
+    distance *
+      Math.sin(rawLatitude),
+
+    distance *
+      Math.cos(rawLatitude) *
+      Math.sin(targetLongitude)
+  );
+}
+
+
+function updateAstronomicalClock() {
+  astronomicalDate =
+    new Date();
+
+  return getAstronomicalDays(
+    astronomicalDate
   );
 }
 
@@ -1303,104 +1269,1137 @@ function getMoonEclipticPosition(
    PLANET DATA
    ========================================================= */
 
-const planetData = [
+const planetDataList = [
   {
     name: "Mercury",
-    radiusKm: 2_439.7,
-    orbitalRadiusAU: 0.387098,
-    eccentricity: 0.20563,
+    color: 0x96928c,
+    orbitColor: 0xa7a7a7,
+    semiMajorAxisAU: 0.387098,
+    eccentricity: 0.20564,
     orbitalPeriodDays: 87.969,
+    radiusKm: 2439.7,
     rotationPeriodHours: 1407.6,
-    startMeanAnomalyDegrees: 174.796,
-    color: 0x9a806b
+    axialTiltDegrees: 0.03,
+    orbitalInclinationDegrees: 7.005,
+    longitudeOfAscendingNodeDegrees: 48.331,
+    argumentOfPeriapsisDegrees: 29.124,
+    startMeanAnomalyDegrees: 174.796
   },
 
   {
     name: "Venus",
-    radiusKm: 6_051.8,
-    orbitalRadiusAU: 0.723332,
-    eccentricity: 0.006772,
+    color: 0xd8bd83,
+    orbitColor: 0xcab98d,
+    semiMajorAxisAU: 0.723336,
+    eccentricity: 0.006776,
     orbitalPeriodDays: 224.701,
+    radiusKm: 6051.8,
     rotationPeriodHours: -5832.5,
-    startMeanAnomalyDegrees: 50.115,
-    color: 0xc99f6c
+    axialTiltDegrees: 177.36,
+    orbitalInclinationDegrees: 3.394,
+    longitudeOfAscendingNodeDegrees: 76.68,
+    argumentOfPeriapsisDegrees: 54.891,
+    startMeanAnomalyDegrees: 50.115
   },
 
   {
     name: "Earth",
-    radiusKm: 6_371,
-    orbitalRadiusAU: 1,
-    eccentricity: 0.0167086,
+    color: 0x347fe0,
+    orbitColor: 0x63a9ff,
+    semiMajorAxisAU: 1,
+    eccentricity: 0.01671,
     orbitalPeriodDays: 365.256,
-    rotationPeriodHours: 23.9345,
+    radiusKm: 6371,
+    rotationPeriodHours: 23.934,
+    axialTiltDegrees: 23.44,
+    orbitalInclinationDegrees: 0,
+    longitudeOfAscendingNodeDegrees: 0,
+    argumentOfPeriapsisDegrees: 102.937,
     startMeanAnomalyDegrees: 357.529,
-    color: 0x3c78c8
+    hasMoon: true
   },
 
   {
     name: "Mars",
-    radiusKm: 3_389.5,
-    orbitalRadiusAU: 1.523679,
+    color: 0xc9563d,
+    orbitColor: 0xe07860,
+    semiMajorAxisAU: 1.523679,
     eccentricity: 0.0934,
     orbitalPeriodDays: 686.98,
-    rotationPeriodHours: 24.6229,
-    startMeanAnomalyDegrees: 19.412,
-    color: 0xb85c3c
+    radiusKm: 3389.5,
+    rotationPeriodHours: 24.623,
+    axialTiltDegrees: 25.19,
+    orbitalInclinationDegrees: 1.85,
+    longitudeOfAscendingNodeDegrees: 49.558,
+    argumentOfPeriapsisDegrees: 286.502,
+    startMeanAnomalyDegrees: 19.373
   },
 
   {
     name: "Jupiter",
-    radiusKm: 69_911,
-    orbitalRadiusAU: 5.2044,
+    color: 0xc58e5a,
+    orbitColor: 0xd1a477,
+    semiMajorAxisAU: 5.2028,
     eccentricity: 0.0489,
     orbitalPeriodDays: 4332.59,
+    radiusKm: 69911,
     rotationPeriodHours: 9.925,
-    startMeanAnomalyDegrees: 20.020,
-    color: 0xb98f6b
+    axialTiltDegrees: 3.13,
+    orbitalInclinationDegrees: 1.304,
+    longitudeOfAscendingNodeDegrees: 100.454,
+    argumentOfPeriapsisDegrees: 273.877,
+    startMeanAnomalyDegrees: 20.02
   },
 
   {
     name: "Saturn",
-    radiusKm: 58_232,
-    orbitalRadiusAU: 9.5826,
+    color: 0xd4c18a,
+    orbitColor: 0xe0d2a6,
+    semiMajorAxisAU: 9.537,
     eccentricity: 0.0565,
-    orbitalPeriodDays: 10759.22,
+    orbitalPeriodDays: 10755.7,
+    radiusKm: 58232,
     rotationPeriodHours: 10.656,
-    startMeanAnomalyDegrees: 317.020,
-    color: 0xd1b78d,
+    axialTiltDegrees: 26.73,
+    orbitalInclinationDegrees: 2.486,
+    longitudeOfAscendingNodeDegrees: 113.663,
+    argumentOfPeriapsisDegrees: 339.392,
+    startMeanAnomalyDegrees: 317.021,
     hasRings: true
   },
 
   {
     name: "Uranus",
-    radiusKm: 25_362,
-    orbitalRadiusAU: 19.2184,
-    eccentricity: 0.046381,
+    color: 0x79d6dd,
+    orbitColor: 0x91e8ed,
+    semiMajorAxisAU: 19.1914,
+    eccentricity: 0.0472,
     orbitalPeriodDays: 30688.5,
+    radiusKm: 25362,
     rotationPeriodHours: -17.24,
-    startMeanAnomalyDegrees: 142.2386,
-    color: 0x83c7d7
+    axialTiltDegrees: 97.77,
+    orbitalInclinationDegrees: 0.773,
+    longitudeOfAscendingNodeDegrees: 74,
+    argumentOfPeriapsisDegrees: 96.661,
+    startMeanAnomalyDegrees: 141.05
   },
 
   {
     name: "Neptune",
-    radiusKm: 24_622,
-    orbitalRadiusAU: 30.11,
-    eccentricity: 0.009456,
+    color: 0x3c68d8,
+    orbitColor: 0x7794ff,
+    semiMajorAxisAU: 30.0611,
+    eccentricity: 0.0086,
     orbitalPeriodDays: 60182,
+    radiusKm: 24622,
     rotationPeriodHours: 16.11,
-    startMeanAnomalyDegrees: 256.228,
-    color: 0x466ed6
+    axialTiltDegrees: 28.32,
+    orbitalInclinationDegrees: 1.77,
+    longitudeOfAscendingNodeDegrees: 131.781,
+    argumentOfPeriapsisDegrees: 272.846,
+    startMeanAnomalyDegrees: 256.228
   }
 ];
 
 
 /* =========================================================
-   HELPERS
+   ERROR
    ========================================================= */
 
+function showError(message) {
+  loadingScreen.hidden = true;
+  startScreen.hidden = true;
+  gameUI.hidden = true;
+
+  errorMessage.textContent =
+    message;
+
+  errorScreen.hidden = false;
+}
+
+
+/* =========================================================
+   UPDATE SUN WORLD POSITION
+   ========================================================= */
+
+function updateSunWorldPosition() {
+  if (
+    !solarSystemRoot
+  ) {
+    sunPosition.set(
+      0,
+      0,
+      0
+    );
+
+    return;
+  }
+
+  sunPosition.copy(
+    solarSystemRoot.position
+  );
+}
+
+
+/* =========================================================
+   FLOATING ORIGIN
+   ========================================================= */
+
+function rebaseSolarSystemIfNeeded() {
+  if (
+    !camera ||
+    !solarSystemRoot
+  ) {
+    return;
+  }
+
+  const distanceFromOrigin =
+    camera.position.length();
+
+  if (
+    distanceFromOrigin <
+    FLOATING_ORIGIN_THRESHOLD
+  ) {
+    return;
+  }
+
+  tempShift.copy(
+    camera.position
+  );
+
+  solarSystemRoot.position.sub(
+    tempShift
+  );
+
+  camera.position.sub(
+    tempShift
+  );
+
+  updateSunWorldPosition();
+}
+
+
+/* =========================================================
+   SPEED UI
+   ========================================================= */
+
+function updateSpeedButtons() {
+  document
+    .querySelectorAll(
+      "[data-speed]"
+    )
+    .forEach(
+      (button) => {
+        const selected =
+          button.dataset.speed ===
+          currentSpeedMode;
+
+        button.classList.toggle(
+          "is-selected",
+          selected
+        );
+
+        button.setAttribute(
+          "aria-pressed",
+          String(selected)
+        );
+      }
+    );
+
+  gameUI.classList.toggle(
+    "superman-mode",
+    currentSpeedMode ===
+      "superman"
+  );
+
+  updateCreatorLabelMode();
+}
+
+
+function setSpeedMode(mode) {
+  if (
+    !speedModes[mode]
+  ) {
+    return;
+  }
+
+  if (
+    energy <= 0 &&
+    mode === "superman"
+  ) {
+    mode = "chill";
+  }
+
+  currentSpeedMode =
+    mode;
+
+  /*
+   * Chill and Creator are intentionally instant and fixed.
+   * This prevents Creator/Chill from inheriting a previous
+   * Superman acceleration state.
+   */
+  if (
+    mode === "chill" ||
+    mode === "creator"
+  ) {
+    currentMovementSpeed =
+      CHILL_SPEED;
+  }
+
+  updateSpeedButtons();
+  updateEnergyDisplay();
+}
+
+
+function updateCreatorLabelMode() {
+  labelLayer.classList.toggle(
+    "creator-enabled",
+    planetLabelsVisible &&
+      currentSpeedMode ===
+        "creator" &&
+      !cinematicMode
+  );
+}
+
+
+/* =========================================================
+   ENERGY DISPLAY
+   ========================================================= */
+
+function updateEnergyDisplay() {
+  const displayedEnergy =
+    Math.round(
+      energy
+    );
+
+  $("energy-fill").style.width =
+    `${energy}%`;
+
+  $("energy-percent").textContent =
+    `${displayedEnergy}%`;
+
+  $("energy-bar").setAttribute(
+    "aria-valuenow",
+    String(displayedEnergy)
+  );
+
+  if (
+    energy <= 25
+  ) {
+    $("energy-fill").style.backgroundColor =
+      "#ff665f";
+  } else if (
+    energy <= 55
+  ) {
+    $("energy-fill").style.backgroundColor =
+      "#ffd15c";
+  } else {
+    $("energy-fill").style.backgroundColor =
+      "#65e68a";
+  }
+
+  const lowEnergy =
+    currentSpeedMode ===
+      "superman" &&
+    energy < 20;
+
+  gameUI.classList.toggle(
+    "superman-low-energy",
+    lowEnergy
+  );
+}
+
+
+/* =========================================================
+   MOVEMENT SPEED
+   ========================================================= */
+
+function updateMovementSpeed(
+  deltaTime
+) {
+  const mode =
+    speedModes[
+      currentSpeedMode
+    ] ||
+    speedModes.chill;
+
+  const targetSpeed =
+    mode.speed;
+
+  if (
+    currentSpeedMode ===
+      "chill" ||
+    currentSpeedMode ===
+      "creator"
+  ) {
+    currentMovementSpeed =
+      CHILL_SPEED;
+
+    return;
+  }
+
+  const difference =
+    targetSpeed -
+    currentMovementSpeed;
+
+  const maximumChange =
+    SPEED_ACCELERATION *
+    deltaTime;
+
+  if (
+    Math.abs(difference) <=
+    maximumChange
+  ) {
+    currentMovementSpeed =
+      targetSpeed;
+
+    return;
+  }
+
+  currentMovementSpeed +=
+    Math.sign(difference) *
+    maximumChange;
+}
+
+
+/* =========================================================
+   VISUAL TOGGLES
+   ========================================================= */
+
+function updateVisualToggleButtons() {
+  const labelButton =
+    $("labels-toggle");
+
+  const orbitButton =
+    $("orbits-toggle");
+
+  const distanceButton =
+    $("distance-toggle");
+
+  if (labelButton) {
+    labelButton.querySelector(
+      ".toggle-state"
+    ).textContent =
+      planetLabelsVisible
+        ? "ON"
+        : "OFF";
+
+    labelButton.setAttribute(
+      "aria-pressed",
+      String(planetLabelsVisible)
+    );
+  }
+
+  if (orbitButton) {
+    orbitButton.querySelector(
+      ".toggle-state"
+    ).textContent =
+      orbitLinesVisible
+        ? "ON"
+        : "OFF";
+
+    orbitButton.setAttribute(
+      "aria-pressed",
+      String(orbitLinesVisible)
+    );
+  }
+
+  if (distanceButton) {
+    distanceButton.querySelector(
+      ".toggle-state"
+    ).textContent =
+      distanceVisible
+        ? "ON"
+        : "OFF";
+
+    distanceButton.setAttribute(
+      "aria-pressed",
+      String(distanceVisible)
+    );
+  }
+
+  const cinematicButton =
+    $("cinematic-toggle");
+
+  if (cinematicButton) {
+    cinematicButton.querySelector(
+      ".toggle-state"
+    ).textContent =
+      cinematicMode
+        ? "ON"
+        : "OFF";
+
+    cinematicButton.setAttribute(
+      "aria-pressed",
+      String(cinematicMode)
+    );
+  }
+}
+
+
+function setPlanetLabelsVisible(
+  visible
+) {
+  planetLabelsVisible =
+    visible;
+
+  updateVisualToggleButtons();
+  updateCreatorLabelMode();
+}
+
+
+function setOrbitLinesVisible(
+  visible
+) {
+  orbitLinesVisible =
+    visible;
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (planetData.orbitLine) {
+      planetData.orbitLine.visible =
+        orbitLinesVisible &&
+        !cinematicMode;
+    }
+  }
+
+  updateVisualToggleButtons();
+}
+
+
+function setDistanceVisible(
+  visible
+) {
+  distanceVisible =
+    visible;
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (
+      planetData.labelDistance
+    ) {
+      planetData.labelDistance.style.display =
+        distanceVisible
+          ? ""
+          : "none";
+    }
+  }
+
+  updateVisualToggleButtons();
+}
+
+
+function setCinematicMode(
+  enabled
+) {
+  cinematicMode =
+    enabled;
+
+  if (
+    cinematicMode
+  ) {
+    uiMenuVisible =
+      false;
+
+    $("visual-panel").hidden =
+      true;
+
+    uiToggle.setAttribute(
+      "aria-expanded",
+      "false"
+    );
+  }
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (planetData.orbitLine) {
+      planetData.orbitLine.visible =
+        orbitLinesVisible &&
+        !cinematicMode;
+    }
+  }
+
+  gameUI.classList.toggle(
+    "cinematic-mode",
+    cinematicMode
+  );
+
+  labelLayer.classList.toggle(
+    "cinematic-hidden",
+    cinematicMode
+  );
+
+  updateVisualToggleButtons();
+  updateCreatorLabelMode();
+}
+
+
+/* =========================================================
+   UI MENU
+   ========================================================= */
+
+function setUIMenuVisible(
+  visible
+) {
+  if (
+    cinematicMode &&
+    visible
+  ) {
+    setCinematicMode(
+      false
+    );
+  }
+
+  uiMenuVisible =
+    visible;
+
+  const visualPanel =
+    $("visual-panel");
+
+  visualPanel.hidden =
+    !uiMenuVisible;
+
+  uiToggle.setAttribute(
+    "aria-expanded",
+    String(uiMenuVisible)
+  );
+}
+
+
+/* =========================================================
+   NORTH / HEADING
+   ========================================================= */
+
+function setNorthHeading() {
+  if (
+    !camera
+  ) {
+    return;
+  }
+
+  yaw = 0;
+
+  pitch = 0;
+
+  camera.rotation.set(
+    pitch,
+    yaw,
+    0
+  );
+}
+
+
+/* =========================================================
+   STAR FIELD
+   ========================================================= */
+
+function createStarField() {
+  const starCount =
+    2600;
+
+  const positions =
+    new Float32Array(
+      starCount * 3
+    );
+
+  for (
+    let i = 0;
+    i < starCount;
+    i += 1
+  ) {
+    const direction =
+      new THREE.Vector3(
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1,
+        Math.random() * 2 - 1
+      ).normalize();
+
+    const distance =
+      7_000_000 +
+      Math.random() *
+        5_000_000;
+
+    positions[
+      i * 3
+    ] =
+      direction.x *
+      distance;
+
+    positions[
+      i * 3 + 1
+    ] =
+      direction.y *
+      distance;
+
+    positions[
+      i * 3 + 2
+    ] =
+      direction.z *
+      distance;
+  }
+
+  const geometry =
+    new THREE.BufferGeometry();
+
+  geometry.setAttribute(
+    "position",
+    new THREE.BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+  stars =
+    new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({
+        color:
+          0xffffff,
+
+        size:
+          900,
+
+        sizeAttenuation:
+          true,
+
+        transparent:
+          true,
+
+        opacity:
+          0.85,
+
+        depthWrite:
+          false
+      })
+    );
+
+  scene.add(
+    stars
+  );
+}
+
+
+/* =========================================================
+   DISTANT SUN SPRITE
+   ========================================================= */
+
+function createSunSprite() {
+  const canvas =
+    document.createElement(
+      "canvas"
+    );
+
+  canvas.width =
+    64;
+
+  canvas.height =
+    64;
+
+  const ctx =
+    canvas.getContext(
+      "2d"
+    );
+
+  const gradient =
+    ctx.createRadialGradient(
+      32,
+      32,
+      1,
+      32,
+      32,
+      32
+    );
+
+  gradient.addColorStop(
+    0,
+    "rgba(255,255,220,1)"
+  );
+
+  gradient.addColorStop(
+    0.18,
+    "rgba(255,225,94,1)"
+  );
+
+  gradient.addColorStop(
+    0.55,
+    "rgba(255,162,35,0.72)"
+  );
+
+  gradient.addColorStop(
+    1,
+    "rgba(255,145,25,0)"
+  );
+
+  ctx.fillStyle =
+    gradient;
+
+  ctx.fillRect(
+    0,
+    0,
+    64,
+    64
+  );
+
+  const texture =
+    new THREE.CanvasTexture(
+      canvas
+    );
+
+  texture.colorSpace =
+    THREE.SRGBColorSpace;
+
+  sunSprite =
+    new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map:
+          texture,
+
+        transparent:
+          true,
+
+        opacity:
+          0,
+
+        depthWrite:
+          false,
+
+        depthTest:
+          true
+      })
+    );
+
+  sunSprite.position.set(
+    0,
+    0,
+    0
+  );
+
+  solarSystemRoot.add(
+    sunSprite
+  );
+}
+
+
+/* =========================================================
+   ORBIT POSITION
+   ========================================================= */
+
+function getEllipsePosition(
+  semiMajorAxis,
+  eccentricity,
+  eccentricAnomaly
+) {
+  const semiMinorAxis =
+    semiMajorAxis *
+    Math.sqrt(
+      1 -
+        eccentricity *
+          eccentricity
+    );
+
+  return new THREE.Vector3(
+    semiMajorAxis *
+      (
+        Math.cos(
+          eccentricAnomaly
+        ) -
+        eccentricity
+      ),
+
+    0,
+
+    semiMinorAxis *
+      Math.sin(
+        eccentricAnomaly
+      )
+  );
+}
+
+
+/* =========================================================
+   KEPLER SOLVER
+   ========================================================= */
+
+function solveEccentricAnomaly(
+  meanAnomaly,
+  eccentricity
+) {
+  let eccentricAnomaly =
+    meanAnomaly;
+
+  for (
+    let i = 0;
+    i < 8;
+    i += 1
+  ) {
+    const difference =
+      eccentricAnomaly -
+      eccentricity *
+        Math.sin(
+          eccentricAnomaly
+        ) -
+      meanAnomaly;
+
+    const derivative =
+      1 -
+      eccentricity *
+        Math.cos(
+          eccentricAnomaly
+        );
+
+    eccentricAnomaly -=
+      difference /
+      derivative;
+  }
+
+  return eccentricAnomaly;
+}
+
+
+/* =========================================================
+   ORBIT LINE
+   ========================================================= */
+
+function createOrbitLine(
+  semiMajorAxis,
+  eccentricity,
+  color
+) {
+  const points =
+    [];
+
+  const segments =
+    360;
+
+  const semiMinorAxis =
+    semiMajorAxis *
+    Math.sqrt(
+      1 -
+        eccentricity *
+          eccentricity
+    );
+
+  for (
+    let i = 0;
+    i <
+    segments;
+    i += 1
+  ) {
+    const angle =
+      (
+        i /
+        segments
+      ) *
+      Math.PI *
+      2;
+
+    points.push(
+      new THREE.Vector3(
+        semiMajorAxis *
+          (
+            Math.cos(
+              angle
+            ) -
+            eccentricity
+          ),
+
+        0,
+
+        semiMinorAxis *
+          Math.sin(
+            angle
+          )
+      )
+    );
+  }
+
+  const geometry =
+    new THREE.BufferGeometry().setFromPoints(
+      points
+    );
+
+  const material =
+    new THREE.LineBasicMaterial({
+      color:
+        color,
+
+      transparent:
+        true,
+
+      opacity:
+        0.30
+    });
+
+  return new THREE.LineLoop(
+    geometry,
+    material
+  );
+}
+
+
+/* =========================================================
+   SATURN RING GEOMETRY
+   ========================================================= */
+
+function createSaturnRingGeometry(
+  innerRadius,
+  outerRadius,
+  segments
+) {
+  const positions =
+    [];
+
+  const uvs =
+    [];
+
+  const indices =
+    [];
+
+  for (
+    let i = 0;
+    i <= segments;
+    i += 1
+  ) {
+    const angle =
+      (
+        i /
+        segments
+      ) *
+      Math.PI *
+      2;
+
+    const cos =
+      Math.cos(
+        angle
+      );
+
+    const sin =
+      Math.sin(
+        angle
+      );
+
+    positions.push(
+      innerRadius *
+        cos,
+      0,
+      innerRadius *
+        sin,
+
+      outerRadius *
+        cos,
+      0,
+      outerRadius *
+        sin
+    );
+
+    uvs.push(
+      0,
+      i / segments,
+
+      1,
+      i / segments
+    );
+  }
+
+  for (
+    let i = 0;
+    i < segments;
+    i += 1
+  ) {
+    const base =
+      i * 2;
+
+    indices.push(
+      base,
+      base + 1,
+      base + 2,
+
+      base + 1,
+      base + 3,
+      base + 2
+    );
+  }
+
+  const geometry =
+    new THREE.BufferGeometry();
+
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(
+      positions,
+      3
+    )
+  );
+
+  geometry.setAttribute(
+    "uv",
+    new THREE.Float32BufferAttribute(
+      uvs,
+      2
+    )
+  );
+
+  geometry.setIndex(
+    indices
+  );
+
+  geometry.computeVertexNormals();
+
+  return geometry;
+}
+
+
+/* =========================================================
+   LABELS
+   ========================================================= */
+
+function formatDistance(
+  distance
+) {
+  if (
+    distance >=
+    GAME_UNITS_PER_AU
+  ) {
+    return (
+      (
+        distance /
+        GAME_UNITS_PER_AU
+      ).toFixed(2) +
+      " AU"
+    );
+  }
+
+  if (
+    distance >=
+    1_000
+  ) {
+    return (
+      (
+        distance /
+        1_000
+      ).toFixed(1) +
+      "k"
+    );
+  }
+
+  return (
+    Math.round(
+      distance
+    ) +
+    " u"
+  );
+}
+
+
 function createLabel(
-  text
+  name,
+  planetData
 ) {
   const label =
     document.createElement(
@@ -1410,159 +2409,219 @@ function createLabel(
   label.className =
     "planet-label";
 
-  label.textContent =
-    text;
+  const nameElement =
+    document.createElement(
+      "span"
+    );
+
+  nameElement.className =
+    "planet-label-name";
+
+  nameElement.textContent =
+    name;
+
+  const distanceElement =
+    document.createElement(
+      "span"
+    );
+
+  distanceElement.className =
+    "planet-label-distance";
+
+  distanceElement.textContent =
+    "";
+
+  label.appendChild(
+    nameElement
+  );
+
+  label.appendChild(
+    distanceElement
+  );
+
+  label.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (
+        currentSpeedMode !==
+        "creator"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  );
+
+  label.addEventListener(
+    "click",
+    (event) => {
+      if (
+        currentSpeedMode !==
+        "creator"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      teleportToPlanet(
+        planetData
+      );
+    }
+  );
 
   labelLayer.appendChild(
     label
   );
 
+  planetData.labelDistance =
+    distanceElement;
+
   return label;
 }
 
 
-function formatDistance(
-  distance
-) {
-  if (
-    distance < 1000
-  ) {
-    return (
-      distance.toFixed(0) +
-      " km"
-    );
-  }
-
-  if (
-    distance <
-    GAME_UNITS_PER_AU
-  ) {
-    return (
-      (
-        distance /
-        GAME_UNITS_PER_KM
-      ).toLocaleString(
-        undefined,
-        {
-          maximumFractionDigits:
-            0
-        }
-      ) +
-      " km"
-    );
-  }
-
-  return (
-    (
-      distance /
-      GAME_UNITS_PER_AU
-    ).toFixed(2) +
-    " AU"
-  );
-}
-
-
-function clamp(
-  value,
-  min,
-  max
-) {
-  return Math.max(
-    min,
-    Math.min(
-      max,
-      value
-    )
-  );
-}
-
-
 /* =========================================================
-   CREATE PLANET
+   PLANET CREATION
    ========================================================= */
 
-function createPlanet(
-  data
-) {
+function createPlanet(data) {
+  const semiMajorAxis =
+    data.semiMajorAxisAU *
+    GAME_UNITS_PER_AU *
+    SOLAR_SYSTEM_SCALE;
+
   const planetRadius =
     data.radiusKm *
     GAME_UNITS_PER_KM *
     SOLAR_SYSTEM_SCALE;
 
-  const semiMajorAxis =
-    data.orbitalRadiusAU *
-    GAME_UNITS_PER_AU *
-    SOLAR_SYSTEM_SCALE;
+  const ascendingNodeGroup =
+    new THREE.Group();
 
-  const startingMeanAnomaly =
+  ascendingNodeGroup.rotation.y =
     THREE.MathUtils.degToRad(
-      data.startMeanAnomalyDegrees
+      data.longitudeOfAscendingNodeDegrees
     );
 
-  const meanMotion =
-    Math.PI * 2 /
-    (
-      data.orbitalPeriodDays *
-      SECONDS_PER_DAY
+  const inclinationGroup =
+    new THREE.Group();
+
+  inclinationGroup.rotation.x =
+    THREE.MathUtils.degToRad(
+      data.orbitalInclinationDegrees
     );
 
-  const spinSpeed =
-    (
-      Math.PI * 2
-    ) /
-    (
-      Math.abs(
-        data.rotationPeriodHours
-      ) *
-      3600
+  const periapsisGroup =
+    new THREE.Group();
+
+  periapsisGroup.rotation.y =
+    THREE.MathUtils.degToRad(
+      data.argumentOfPeriapsisDegrees
     );
+
+  ascendingNodeGroup.add(
+    inclinationGroup
+  );
+
+  inclinationGroup.add(
+    periapsisGroup
+  );
+
+  solarSystemRoot.add(
+    ascendingNodeGroup
+  );
+
+  const orbitLine =
+    createOrbitLine(
+      semiMajorAxis,
+      data.eccentricity,
+      data.orbitColor
+    );
+
+  orbitLine.visible =
+    orbitLinesVisible;
+
+  periapsisGroup.add(
+    orbitLine
+  );
 
   const orbitalBodyGroup =
     new THREE.Group();
 
-  orbitalBodyGroup.name =
-    data.name +
-    " Orbit";
-
-  solarSystemRoot.add(
+  periapsisGroup.add(
     orbitalBodyGroup
   );
 
-  const geometry =
-    new THREE.SphereGeometry(
-      planetRadius,
-      48,
-      32
+  const axialTiltGroup =
+    new THREE.Group();
+
+  axialTiltGroup.rotation.z =
+    THREE.MathUtils.degToRad(
+      data.axialTiltDegrees
     );
+
+  orbitalBodyGroup.add(
+    axialTiltGroup
+  );
+
+  const heroPlanet =
+    data.name === "Earth" ||
+    data.name === "Jupiter" ||
+    data.name === "Saturn";
+
+  const sphereSegments =
+    heroPlanet
+      ? 48
+      : 32;
+
+  const sphereRings =
+    heroPlanet
+      ? 32
+      : 20;
 
   const material =
-    new THREE.MeshStandardMaterial(
-      {
-        color:
-          data.color,
+    new THREE.MeshStandardMaterial({
+      color:
+        data.color,
 
-        roughness:
-          0.9,
+      roughness:
+        data.name === "Earth"
+          ? 0.70
+          : 0.90,
 
-        metalness:
-          0
-      }
-    );
+      metalness:
+        0.02
+    });
 
   const planet =
     new THREE.Mesh(
-      geometry,
+      new THREE.SphereGeometry(
+        planetRadius,
+        sphereSegments,
+        sphereRings
+      ),
       material
     );
 
-  planet.name =
-    data.name;
-
-  orbitalBodyGroup.add(
+  axialTiltGroup.add(
     planet
   );
 
-  let cloudMesh = null;
+  sunOccluders.push(
+    planet
+  );
+
+
+  /* =======================================================
+     EARTH DETAIL
+     ======================================================= */
+
+  let cloudMesh =
+    null;
 
   if (
     data.name ===
@@ -1571,53 +2630,52 @@ function createPlanet(
     loadTextureWithFallback(
       TEXTURE_URLS.earth,
       (texture) => {
-        planet.material.map =
+        material.map =
           texture;
 
-        planet.material.color.set(
+        material.color.set(
           0xffffff
         );
 
-        planet.material.needsUpdate =
+        material.roughness =
+          0.72;
+
+        material.needsUpdate =
           true;
       }
     );
 
-    const cloudGeometry =
-      new THREE.SphereGeometry(
-        planetRadius *
-          1.008,
-        48,
-        32
-      );
-
     const cloudMaterial =
-      new THREE.MeshStandardMaterial(
-        {
-          transparent:
-            true,
+      new THREE.MeshStandardMaterial({
+        color:
+          0xffffff,
 
-          opacity:
-            0.75,
+        transparent:
+          true,
 
-          depthWrite:
-            false,
+        opacity:
+          0.48,
 
-          roughness:
-            1
-        }
-      );
+        depthWrite:
+          false,
+
+        roughness:
+          1
+      });
 
     cloudMesh =
       new THREE.Mesh(
-        cloudGeometry,
+        new THREE.SphereGeometry(
+          planetRadius *
+            1.014,
+
+          sphereSegments,
+          sphereRings
+        ),
         cloudMaterial
       );
 
-    cloudMesh.name =
-      "Earth Clouds";
-
-    orbitalBodyGroup.add(
+    axialTiltGroup.add(
       cloudMesh
     );
 
@@ -1627,15 +2685,16 @@ function createPlanet(
         cloudMaterial.map =
           texture;
 
-        cloudMaterial.color.set(
-          0xffffff
-        );
-
         cloudMaterial.needsUpdate =
           true;
       }
     );
   }
+
+
+  /* =======================================================
+     JUPITER DETAIL
+     ======================================================= */
 
   if (
     data.name ===
@@ -1644,18 +2703,26 @@ function createPlanet(
     loadTextureWithFallback(
       TEXTURE_URLS.jupiter,
       (texture) => {
-        planet.material.map =
+        material.map =
           texture;
 
-        planet.material.color.set(
+        material.color.set(
           0xffffff
         );
 
-        planet.material.needsUpdate =
+        material.roughness =
+          0.94;
+
+        material.needsUpdate =
           true;
       }
     );
   }
+
+
+  /* =======================================================
+     SATURN DETAIL
+     ======================================================= */
 
   if (
     data.name ===
@@ -1664,48 +2731,68 @@ function createPlanet(
     loadTextureWithFallback(
       TEXTURE_URLS.saturn,
       (texture) => {
-        planet.material.map =
+        material.map =
           texture;
 
-        planet.material.color.set(
+        material.color.set(
           0xffffff
         );
 
-        planet.material.needsUpdate =
+        material.roughness =
+          0.96;
+
+        material.needsUpdate =
           true;
       }
     );
+  }
+
+
+  /* =======================================================
+     SATURN RINGS
+     ======================================================= */
+
+  if (
+    data.hasRings
+  ) {
+    const ringInnerRadius =
+      planetRadius *
+      1.12;
+
+    const ringOuterRadius =
+      planetRadius *
+      2.32;
 
     const ringGeometry =
-      new THREE.RingGeometry(
-        planetRadius *
-          1.25,
-
-        planetRadius *
-          2.35,
-
-        128
+      createSaturnRingGeometry(
+        ringInnerRadius,
+        ringOuterRadius,
+        256
       );
 
     const ringMaterial =
-      new THREE.MeshStandardMaterial(
-        {
-          color:
-            0xffffff,
+      new THREE.MeshStandardMaterial({
+        color:
+          0xd8c89f,
 
-          transparent:
-            true,
+        side:
+          THREE.DoubleSide,
 
-          side:
-            THREE.DoubleSide,
+        transparent:
+          true,
 
-          roughness:
-            1,
+        opacity:
+          0.92,
 
-          depthWrite:
-            false
-        }
-      );
+        roughness:
+          0.96,
+
+        metalness:
+          0,
+
+        depthWrite:
+          false
+      });
 
     const rings =
       new THREE.Mesh(
@@ -1716,9 +2803,6 @@ function createPlanet(
     rings.rotation.x =
       Math.PI / 2;
 
-    rings.name =
-      "Saturn Rings";
-
     planet.add(
       rings
     );
@@ -1726,15 +2810,14 @@ function createPlanet(
     loadTextureWithFallback(
       TEXTURE_URLS.saturnRing,
       (texture) => {
-        ringMaterial.map =
-          texture;
+        texture.wrapS =
+          THREE.ClampToEdgeWrapping;
+
+        texture.wrapT =
+          THREE.RepeatWrapping;
 
         ringMaterial.alphaMap =
           texture;
-
-        ringMaterial.color.set(
-          0xffffff
-        );
 
         ringMaterial.needsUpdate =
           true;
@@ -1742,84 +2825,117 @@ function createPlanet(
     );
   }
 
-  const orbitGeometry =
-    new THREE.BufferGeometry();
 
-  const orbitPoints = [];
+  /* =======================================================
+     MOON
+     ======================================================= */
 
-  const orbitSegments =
-    256;
-
-  for (
-    let i = 0;
-    i <= orbitSegments;
-    i += 1
+  if (
+    data.hasMoon
   ) {
-    const theta =
-      (
-        i /
-        orbitSegments
-      ) *
-      Math.PI *
-      2;
+    moonPivot =
+      new THREE.Group();
 
-    const r =
-      semiMajorAxis *
-      (
-        1 -
-        data.eccentricity *
-          data.eccentricity
-      ) /
-      (
-        1 +
-        data.eccentricity *
-          Math.cos(theta)
+    orbitalBodyGroup.add(
+      moonPivot
+    );
+
+    moonMesh =
+      new THREE.Mesh(
+        new THREE.SphereGeometry(
+          MOON_RADIUS,
+          24,
+          16
+        ),
+
+        new THREE.MeshStandardMaterial({
+          color:
+            0xbfc4cf,
+
+          roughness:
+            1
+        })
       );
 
-    orbitPoints.push(
-      new THREE.Vector3(
-        r *
-          Math.cos(theta),
+    moonMesh.position.set(
+      MOON_ORBIT_RADIUS,
+      0,
+      0
+    );
 
-        0,
+    moonPivot.add(
+      moonMesh
+    );
 
-        r *
-          Math.sin(theta)
-      )
+    sunOccluders.push(
+      moonMesh
     );
   }
 
-  orbitGeometry.setFromPoints(
-    orbitPoints
-  );
 
-  const orbitMaterial =
-    new THREE.LineBasicMaterial(
-      {
-        color:
-          0x6f86a8,
+  /* =======================================================
+     INITIAL ORBIT STATE
+     ======================================================= */
 
-        transparent:
-          true,
-
-        opacity:
-          0.22
-      }
+  const startingMeanAnomaly =
+    getPlanetMeanAnomalyAtDate(
+      data,
+      astronomicalDate
     );
 
-  const orbitLine =
-    new THREE.Line(
-      orbitGeometry,
-      orbitMaterial
+  const initialEccentricAnomaly =
+    solveEccentricAnomaly(
+      startingMeanAnomaly,
+      data.eccentricity
     );
 
-  solarSystemRoot.add(
-    orbitLine
+  orbitalBodyGroup.position.copy(
+    getEllipsePosition(
+      semiMajorAxis,
+      data.eccentricity,
+      initialEccentricAnomaly
+    )
   );
 
-  const label =
-    createLabel(
-      data.name
+  const orbitalPeriodSeconds =
+    data.orbitalPeriodDays *
+    SECONDS_PER_DAY;
+
+  const meanMotion =
+    (
+      Math.PI * 2 /
+      orbitalPeriodSeconds
+    ) *
+    SIMULATION_TIME_MULTIPLIER;
+
+  const rotationPeriodSeconds =
+    Math.abs(
+      data.rotationPeriodHours
+    ) *
+    3600;
+
+  const spinSpeed =
+    (
+      Math.PI * 2 /
+      rotationPeriodSeconds
+    ) *
+    (
+      Math.sign(
+        data.rotationPeriodHours
+      ) || 1
+    ) *
+    SIMULATION_TIME_MULTIPLIER;
+
+  const elapsedSeconds =
+    getAstronomicalDays(
+      astronomicalDate
+    ) *
+    SECONDS_PER_DAY;
+
+  planet.rotation.y =
+    normalizeRadians(
+      spinSpeed *
+      elapsedSeconds
     );
 
   const record = {
@@ -1849,7 +2965,8 @@ function createPlanet(
 
     cloudMesh,
 
-    label,
+    label:
+      null,
 
     labelDistance:
       null,
@@ -1858,110 +2975,98 @@ function createPlanet(
       planetRadius
   };
 
+  record.label =
+    createLabel(
+      data.name,
+      record
+    );
+
   solarPlanets.push(
     record
   );
-
-  return record;
 }
 
 
 /* =========================================================
-   CREATE SUN
+   CREATE SOLAR SYSTEM
    ========================================================= */
 
-function createSun() {
-  const sunGeometry =
-    new THREE.SphereGeometry(
-      SUN_RADIUS,
-      64,
-      48
+function createSolarSystem() {
+  updateAstronomicalClock();
+
+  scene =
+    new THREE.Scene();
+
+  scene.background =
+    new THREE.Color(
+      0x050711
     );
 
-  const sunMaterial =
-    new THREE.MeshBasicMaterial(
-      {
-        color:
-          0xffd66b
-      }
-    );
+  solarSystemRoot =
+    new THREE.Group();
 
-  sunMesh =
-    new THREE.Mesh(
-      sunGeometry,
-      sunMaterial
-    );
-
-  sunMesh.name =
-    "Sun";
-
-  solarSystemRoot.add(
-    sunMesh
+  solarSystemRoot.position.set(
+    0,
+    0,
+    0
   );
 
-  const sunLabel =
-    createLabel(
-      "Sun"
-    );
-
-  solarPlanets.push(
-    {
-      name:
-        "Sun",
-
-      sourceData:
-        {
-          name:
-            "Sun"
-        },
-
-      semiMajorAxis:
-        0,
-
-      eccentricity:
-        0,
-
-      meanAnomaly:
-        0,
-
-      meanMotion:
-        0,
-
-      spinSpeed:
-        0,
-
-      orbitalBodyGroup:
-        solarSystemRoot,
-
-      planet:
-        sunMesh,
-
-      orbitLine:
-        null,
-
-      cloudMesh:
-        null,
-
-      label:
-        sunLabel,
-
-      labelDistance:
-        null,
-
-      radius:
-        SUN_RADIUS,
-
-      isSun:
-        true
-    }
+  scene.add(
+    solarSystemRoot
   );
 
+  camera =
+    new THREE.PerspectiveCamera(
+      70,
+
+      window.innerWidth /
+        window.innerHeight,
+
+      0.05,
+
+      60_000_000
+    );
+
+  camera.rotation.order =
+    "YXZ";
+
+  camera.rotation.set(
+    pitch,
+    yaw,
+    0
+  );
+
+  scene.add(
+    camera
+  );
+
+  /*
+   * Low ambient fill keeps the night side readable without
+   * washing out the actual direction of sunlight.
+   */
+  scene.add(
+    new THREE.HemisphereLight(
+      0x8ea6d4,
+      0x16111c,
+      0.08
+    )
+  );
+
+  /*
+   * The Sun is the actual solar-system light source.
+   *
+   * The light lives inside solarSystemRoot so the floating
+   * origin system moves it together with the Sun.
+   */
   sunLight =
     new THREE.PointLight(
-      0xffffff,
-      2.5,
+      0xffd69a,
+
+      2.0e12,
+
       0,
-           2
+
+      2
     );
 
   sunLight.position.set(
@@ -1974,1651 +3079,158 @@ function createSun() {
     sunLight
   );
 
-  const glowGeometry =
-    new THREE.SphereGeometry(
-      SUN_RADIUS *
-        1.12,
-      32,
-      24
+  sunMesh =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        SUN_RADIUS,
+        48,
+        32
+      ),
+
+      new THREE.MeshBasicMaterial({
+        color:
+          0xffa928
+      })
     );
 
-  const glowMaterial =
-    new THREE.MeshBasicMaterial(
-      {
+  sunMesh.position.set(
+    0,
+    0,
+    0
+  );
+
+  solarSystemRoot.add(
+    sunMesh
+  );
+
+  sunGlow =
+    new THREE.Mesh(
+      new THREE.SphereGeometry(
+        SUN_RADIUS *
+          1.08,
+
+        32,
+        24
+      ),
+
+      new THREE.MeshBasicMaterial({
         color:
-          0xffb347,
+          0xff9a27,
 
         transparent:
           true,
 
         opacity:
-          0.16,
+          0.10,
+
+        side:
+          THREE.BackSide,
 
         depthWrite:
           false
-      }
+      })
     );
 
-  sunGlow =
-    new THREE.Mesh(
-      glowGeometry,
-      glowMaterial
-    );
+  sunGlow.position.set(
+    0,
+    0,
+    0
+  );
 
   solarSystemRoot.add(
     sunGlow
   );
-}
+
+  createSunSprite();
 
 
-/* =========================================================
-   CREATE MOON
-   ========================================================= */
+  /* =======================================================
+     SUN BODY RECORD
+     The Sun uses the same label + Creator teleport system
+     as every planet, while remaining physically stationary
+     at the solar-system origin.
+     ======================================================= */
 
-function createMoon() {
-  moonPivot =
-    new THREE.Group();
+  const sunRecord = {
+    name:
+      "Sun",
 
-  moonPivot.name =
-    "Moon Pivot";
+    semiMajorAxis:
+      0,
 
-  solarSystemRoot.add(
-    moonPivot
-  );
+    eccentricity:
+      0,
 
-  const moonGeometry =
-    new THREE.SphereGeometry(
-      MOON_RADIUS,
-      48,
-      32
-    );
+    meanAnomaly:
+      0,
 
-  const moonMaterial =
-    new THREE.MeshStandardMaterial(
-      {
-        color:
-          0xb7b7b7,
+    meanMotion:
+      0,
 
-        roughness:
-          1
-      }
-    );
+    spinSpeed:
+      0,
 
-  moonMesh =
-    new THREE.Mesh(
-      moonGeometry,
-      moonMaterial
-    );
+    orbitalBodyGroup:
+      null,
 
-  moonMesh.name =
-    "Moon";
+    planet:
+      sunMesh,
 
-  moonPivot.add(
-    moonMesh
-  );
+    orbitLine:
+      null,
 
-  const moonLabel =
+    cloudMesh:
+      null,
+
+    label:
+      null,
+
+    labelDistance:
+      null,
+
+    radius:
+      SUN_RADIUS,
+
+    isSun:
+      true
+  };
+
+  sunRecord.label =
     createLabel(
-      "Moon"
+      "Sun",
+      sunRecord
     );
 
   solarPlanets.push(
-    {
-      name:
-        "Moon",
-
-      sourceData:
-        {
-          name:
-            "Moon"
-        },
-
-      semiMajorAxis:
-        MOON_ORBIT_RADIUS,
-
-      eccentricity:
-        MOON_ECCENTRICITY,
-
-      meanAnomaly:
-        0,
-
-      meanMotion:
-        Math.PI * 2 /
-        (
-          MOON_ORBIT_PERIOD_DAYS *
-          SECONDS_PER_DAY
-        ),
-
-      spinSpeed:
-        0,
-
-      orbitalBodyGroup:
-        moonPivot,
-
-      planet:
-        moonMesh,
-
-      orbitLine:
-        null,
-
-      cloudMesh:
-        null,
-
-      label:
-        moonLabel,
-
-      labelDistance:
-        null,
-
-      radius:
-        MOON_RADIUS,
-
-      isMoon:
-        true
-    }
-  );
-}
-
-
-/* =========================================================
-   ASTRONOMICAL ORBIT UPDATE
-   ========================================================= */
-
-function updateAstronomicalClock() {
-  astronomicalDate =
-    new Date();
-}
-
-
-function updateMoonOrbit(
-  date
-) {
-  if (
-    !moonMesh ||
-    solarPlanets.length === 0
-  ) {
-    return;
-  }
-
-  const earthData =
-    solarPlanets.find(
-      (item) =>
-        item.name ===
-        "Earth"
-    );
-
-  if (
-    !earthData
-  ) {
-    return;
-  }
-
-  const days =
-    getAstronomicalDays(
-      date
-    );
-
-  const lunarState =
-    getLunarPhaseState(
-      date
-    );
-
-  moonPhaseAngle =
-    lunarState.phaseAngle;
-
-  moonIlluminationFraction =
-    lunarState.illuminationFraction;
-
-  earthData.planet
-    .getWorldPosition(
-      tempWorld
-    );
-
-  const earthPosition =
-    tempWorld.clone();
-
-  const earthSunVector =
-    earthPosition
-      .clone()
-      .sub(
-        sunPosition
-      );
-
-  const sunEclipticLongitude =
-    Math.atan2(
-      earthSunVector.z,
-      earthSunVector.x
-    ) +
-    Math.PI;
-
-  moonOrbitalPosition =
-    getMoonEclipticPosition(
-      days,
-      moonPhaseAngle,
-      sunEclipticLongitude
-    );
-
-  moonOrbitalPosition
-    .multiplyScalar(
-      GAME_UNITS_PER_KM *
-      SOLAR_SYSTEM_SCALE
-    );
-
-  moonMesh.position.copy(
-    moonOrbitalPosition
+    sunRecord
   );
 
-  /*
-   * Approximate tidal locking.
-   * The Moon keeps approximately the same face toward Earth.
-   */
-
-  moonMesh.rotation.y =
-    Math.atan2(
-      moonOrbitalPosition.z,
-      moonOrbitalPosition.x
-    ) +
-    Math.PI / 2;
-
-  /*
-   * Physical three-body illumination check.
-   *
-   * This does not fake the Moon phase with a texture.
-   * The Moon remains a real lit sphere.
-   */
-
-  moonMesh.getWorldPosition(
-    tempWorld
-  );
-
-  moonSunDirection
-    .copy(
-      sunPosition
-    )
-    .sub(
-      tempWorld
-    )
-    .normalize();
-
-  const moonToEarth =
-    earthPosition
-      .clone()
-      .sub(
-        tempWorld
-      )
-      .normalize();
-
-  const physicalPhaseAngle =
-    Math.acos(
-      THREE.MathUtils.clamp(
-        moonSunDirection.dot(
-          moonToEarth
-        ),
-        -1,
-        1
-      )
-    );
-
-  moonIlluminationFraction =
-    (
-      1 -
-      Math.cos(
-        physicalPhaseAngle
-      )
-    ) *
-    0.5;
-}
-
-
-function updateOrbits(
-  deltaTime
-) {
-  updateAstronomicalClock();
-
-  for (
-    const planet of
-      solarPlanets
-  ) {
-    if (
-      planet.isSun ||
-      planet.isMoon
-    ) {
-      continue;
-    }
-
-    const data =
-      planet.sourceData;
-
-    planet.meanAnomaly =
-      getPlanetMeanAnomalyAtDate(
-        data,
-        astronomicalDate
-      );
-
-    const eccentricAnomaly =
-      solveKeplerMeanAnomaly(
-        planet.meanAnomaly,
-        planet.eccentricity
-      );
-
-    const semiMajorAxis =
-      planet.semiMajorAxis;
-
-    const x =
-      semiMajorAxis *
-      (
-        Math.cos(
-          eccentricAnomaly
-        ) -
-        planet.eccentricity
-      );
-
-    const z =
-      semiMajorAxis *
-      Math.sqrt(
-        1 -
-        planet.eccentricity *
-          planet.eccentricity
-      ) *
-      Math.sin(
-        eccentricAnomaly
-      );
-
-    planet.orbitalBodyGroup
-      .position.set(
-        x,
-        0,
-        z
-      );
-
-    const elapsedSeconds =
-      (
-        astronomicalDate.getTime() -
-        J2000_EPOCH_MS
-      ) /
-      1000;
-
-    const rotationSign =
-      data.rotationPeriodHours <
-      0
-        ? -1
-        : 1;
-
-    planet.planet.rotation.y =
-      rotationSign *
-      elapsedSeconds *
-      planet.spinSpeed;
-
-    if (
-      planet.cloudMesh
-    ) {
-      planet.cloudMesh.rotation.y =
-        planet.planet.rotation.y *
-        1.02;
-    }
-  }
-
-  updateMoonOrbit(
-    astronomicalDate
-  );
-}
-
-
-/* =========================================================
-   VISUAL BODY SCALE UPDATE
-   ========================================================= */
-
-function updateVisualBodyScales() {
-  for (
-    const planetData of
-      solarPlanets
-  ) {
-    if (
-      !planetData.planet ||
-      planetData.isSun
-    ) {
-      continue;
-    }
-
-    planetData.planet
-      .getWorldPosition(
-        tempWorld
-      );
-
-    const distance =
-      camera.position.distanceTo(
-        tempWorld
-      );
-
-    const visualScale =
-      getVisualBodyScale(
-        distance
-      );
-
-    planetData.planet
-      .scale.set(
-        visualScale,
-        visualScale,
-        visualScale
-      );
-
-    if (
-      planetData.cloudMesh
-    ) {
-      planetData.cloudMesh
-        .scale.set(
-          visualScale,
-          visualScale,
-          visualScale
-        );
-    }
-  }
-
-  if (
-    moonMesh
-  ) {
-    moonMesh.getWorldPosition(
-      tempWorld
-    );
-
-    const moonDistance =
-      camera.position.distanceTo(
-        tempWorld
-      );
-
-    const moonVisualScale =
-      getVisualBodyScale(
-        moonDistance
-      );
-
-    moonMesh.scale.set(
-      moonVisualScale,
-      moonVisualScale,
-      moonVisualScale
-    );
-  }
-}
-
-
-/* =========================================================
-   COLLISION SYSTEM
-   ========================================================= */
-
-function getCollisionBodies() {
-  const bodies = [];
+  createStarField();
 
   for (
     const planetData of
-      solarPlanets
+      planetDataList
   ) {
-    if (
-      !planetData.planet
-    ) {
-      continue;
-    }
-
-    planetData.planet
-      .getWorldPosition(
-        collisionCenter
-      );
-
-    bodies.push(
-      {
-        name:
-          planetData.name,
-
-        position:
-          collisionCenter.clone(),
-
-        radius:
-          planetData.radius
-      }
+    createPlanet(
+      planetData
     );
   }
-
-  return bodies;
-}
-
-
-function closestPointOnSegment(
-  point,
-  segmentStart,
-  segmentEnd,
-  target
-) {
-  collisionDelta
-    .copy(
-      segmentEnd
-    )
-    .sub(
-      segmentStart
-    );
-
-  const lengthSquared =
-    collisionDelta.lengthSq();
-
-  if (
-    lengthSquared <=
-    0.000001
-  ) {
-    target.copy(
-      segmentStart
-    );
-
-    return;
-  }
-
-  const t =
-    THREE.MathUtils.clamp(
-      point
-        .clone()
-        .sub(
-          segmentStart
-        )
-        .dot(
-          collisionDelta
-        ) /
-        lengthSquared,
-
-      0,
-
-      1
-    );
-
-  target.copy(
-    segmentStart
-  ).addScaledVector(
-    collisionDelta,
-    t
-  );
-}
-
-
-function resolveBodyCollisions(
-  previousPosition,
-  proposedPosition
-) {
-  const bodies =
-    getCollisionBodies();
-
-  const result =
-    proposedPosition.clone();
-
-  for (
-    const body of bodies
-  ) {
-    closestPointOnSegment(
-      body.position,
-      previousPosition,
-      result,
-      collisionClosest
-    );
-
-    collisionPush
-      .copy(
-        collisionClosest
-      )
-      .sub(
-        body.position
-      );
-
-    const distance =
-      collisionPush.length();
-
-    const minimumDistance =
-      body.radius +
-      COLLISION_MARGIN;
-
-    if (
-      distance >=
-      minimumDistance
-    ) {
-      continue;
-    }
-
-    if (
-      distance < 0.000001
-    ) {
-      collisionPush.set(
-        0,
-        1,
-        0
-      );
-    } else {
-      collisionPush
-        .normalize();
-    }
-
-    result
-      .copy(
-        collisionClosest
-      )
-      .addScaledVector(
-        collisionPush,
-        minimumDistance
-      );
-  }
-
-  return result;
-}
-
-
-/* =========================================================
-   MOVEMENT
-   ========================================================= */
-
-function getMovementInput() {
-  const movement =
-    new THREE.Vector3();
-
-  if (
-    pressedControls.has(
-      "forward"
-    )
-  ) {
-    movement.z -= 1;
-  }
-
-  if (
-    pressedControls.has(
-      "back"
-    )
-  ) {
-    movement.z += 1;
-  }
-
-  if (
-    pressedControls.has(
-      "left"
-    )
-  ) {
-    movement.x -= 1;
-  }
-
-  if (
-    pressedControls.has(
-      "right"
-    )
-  ) {
-    movement.x += 1;
-  }
-
-  if (
-    pressedControls.has(
-      "up"
-    )
-  ) {
-    movement.y += 1;
-  }
-
-  if (
-    pressedControls.has(
-      "down"
-    )
-  ) {
-    movement.y -= 1;
-  }
-
-  if (
-    movement.lengthSq() >
-    0
-  ) {
-    movement.normalize();
-  }
-
-  return movement;
-}
-
-
-function updateMovement(
-  deltaTime
-) {
-  if (
-    !camera
-  ) {
-    return;
-  }
-
-  if (
-    currentSpeedMode ===
-    "creator"
-  ) {
-    return;
-  }
-
-  const movementInput =
-    getMovementInput();
-
-  if (
-    movementInput.lengthSq() <=
-    0
-  ) {
-    return;
-  }
-
-  const forward =
-    new THREE.Vector3(
-      0,
-      0,
-      -1
-    );
-
-  forward.applyQuaternion(
-    camera.quaternion
-  );
-
-  const right =
-    new THREE.Vector3(
-      1,
-      0,
-      0
-    );
-
-  right.applyQuaternion(
-    camera.quaternion
-  );
-
-  const up =
-    new THREE.Vector3(
-      0,
-      1,
-      0
-    );
-
-  up.applyQuaternion(
-    camera.quaternion
-  );
-
-  const movement =
-    new THREE.Vector3();
-
-  movement
-    .addScaledVector(
-      right,
-      movementInput.x
-    )
-    .addScaledVector(
-      up,
-      movementInput.y
-    )
-    .addScaledVector(
-      forward,
-      -movementInput.z
-    );
-
-  if (
-    movement.lengthSq() >
-    0
-  ) {
-    movement.normalize();
-  }
-
-  if (
-    currentSpeedMode ===
-    "superman"
-  ) {
-    currentMovementSpeed =
-      THREE.MathUtils.lerp(
-        currentMovementSpeed,
-        SUPERMAN_SPEED,
-        Math.min(
-          1,
-          SPEED_ACCELERATION *
-            deltaTime /
-            SUPERMAN_SPEED
-        )
-      );
-  } else {
-    currentMovementSpeed =
-      CHILL_SPEED;
-  }
-
-  const movementDistance =
-    currentMovementSpeed *
-    deltaTime;
-
-  const previousPosition =
-    camera.position.clone();
-
-  const proposedPosition =
-    previousPosition
-      .clone()
-      .addScaledVector(
-        movement,
-        movementDistance
-      );
-
-  const resolvedPosition =
-    resolveBodyCollisions(
-      previousPosition,
-      proposedPosition
-    );
-
-  camera.position.copy(
-    resolvedPosition
-  );
-}
-
-
-/* =========================================================
-   SPEED MODE
-   ========================================================= */
-
-function setSpeedMode(
-  mode
-) {
-  if (
-    !speedModes[mode]
-  ) {
-    return;
-  }
-
-  currentSpeedMode =
-    mode;
-
-  currentMovementSpeed =
-    speedModes[mode].speed;
-
-  if (
-    mode !==
-    "superman"
-  ) {
-    energy = 100;
-  }
-
-  updateSpeedUI();
-}
-
-
-function updateSpeedUI() {
-  const speedModeElement =
-    $("speed-mode");
-
-  const speedValueElement =
-    $("speed-value");
-
-  if (
-    speedModeElement
-  ) {
-    speedModeElement.textContent =
-      currentSpeedMode
-        .toUpperCase();
-  }
-
-  if (
-    speedValueElement
-  ) {
-    speedValueElement.textContent =
-      Math.round(
-        currentMovementSpeed
-      ).toLocaleString();
-  }
-}
-
-
-/* =========================================================
-   ENERGY
-   ========================================================= */
-
-function updateEnergy(
-  deltaTime
-) {
-  if (
-    currentSpeedMode ===
-    "superman"
-  ) {
-    energy -=
-      speedModes.superman
-        .drainRate *
-      deltaTime;
-
-    if (
-      energy <=
-      0
-    ) {
-      energy = 0;
-
-      setSpeedMode(
-        "chill"
-      );
-    }
-  } else {
-    energy +=
-      ENERGY_RECHARGE_RATE *
-      deltaTime;
-
-    energy =
-      Math.min(
-        100,
-        energy
-      );
-  }
-
-  const energyFill =
-    $("energy-fill");
-
-  const energyText =
-    $("energy-text");
-
-  if (
-    energyFill
-  ) {
-    energyFill.style.width =
-      energy +
-      "%";
-  }
-
-  if (
-    energyText
-  ) {
-    energyText.textContent =
-      Math.round(
-        energy
-      ) +
-      "%";
-  }
-}
-
-
-/* =========================================================
-   SUN / ENERGY UI
-   ========================================================= */
-
-function updateSunAndEnergy(
-  deltaTime
-) {
-  updateEnergy(
-    deltaTime
-  );
-}
-
-
-/* =========================================================
-   FLOATING ORIGIN
-   ========================================================= */
-
-function rebaseSolarSystemIfNeeded() {
-  if (
-    !camera ||
-    !solarSystemRoot
-  ) {
-    return;
-  }
-
-  if (
-    camera.position.length() <
-    FLOATING_ORIGIN_THRESHOLD
-  ) {
-    return;
-  }
-
-  tempShift
-    .copy(
-      camera.position
-    );
-
-  solarSystemRoot.position
-    .sub(
-      tempShift
-    );
-
-  camera.position.set(
-    0,
-    0,
-    0
-  );
-}
-
-
-/* =========================================================
-   CAMERA ROTATION
-   ========================================================= */
-
-function updateCameraRotation() {
-  camera.rotation.order =
-    "YXZ";
-
-  camera.rotation.y =
-    yaw;
-
-  camera.rotation.x =
-    pitch;
-}
-
-
-/* =========================================================
-   LABELS
-   ========================================================= */
-
-function updateLabels() {
-  if (
-    !camera
-  ) {
-    return;
-  }
-
-  for (
-    const planetData of
-      solarPlanets
-  ) {
-    if (
-      !planetData.label ||
-      !planetData.planet
-    ) {
-      continue;
-    }
-
-    planetData.planet
-      .getWorldPosition(
-        tempWorld
-      );
-
-    tempProjected
-      .copy(
-        tempWorld
-      )
-      .project(
-        camera
-      );
-
-    const distance =
-      camera.position.distanceTo(
-        tempWorld
-      );
-
-    planetData.labelDistance =
-      distance;
-
-    const visible =
-      planetLabelsVisible &&
-      tempProjected.z <
-        1;
-
-    if (
-      !visible
-    ) {
-      planetData.label.style.display =
-        "none";
-
-      continue;
-    }
-
-    const x =
-      (
-        tempProjected.x *
-        0.5 +
-        0.5
-      ) *
-      window.innerWidth;
-
-    const y =
-      (
-        -tempProjected.y *
-        0.5 +
-        0.5
-      ) *
-      window.innerHeight;
-
-    planetData.label.style.display =
-      "block";
-
-    planetData.label.style.left =
-      x +
-      "px";
-
-    planetData.label.style.top =
-      y +
-      "px";
-
-    planetData.label.style.opacity =
-      clamp(
-        1 -
-          distance /
-            (
-              GAME_UNITS_PER_AU *
-              20
-            ),
-        0.2,
-        1
-      );
-  }
-}
-
-
-/* =========================================================
-   DISTANCE UI
-   ========================================================= */
-
-function updateDistanceUI() {
-  const distanceElement =
-    $("distance-value");
-
-  if (
-    !distanceElement ||
-    !distanceVisible
-  ) {
-    return;
-  }
-
-  let nearestDistance =
-    Infinity;
-
-  let nearestName =
-    "";
-
-  for (
-    const planetData of
-      solarPlanets
-  ) {
-    if (
-      !planetData.planet
-    ) {
-      continue;
-    }
-
-    planetData.planet
-      .getWorldPosition(
-        tempWorld
-      );
-
-    const distance =
-      camera.position.distanceTo(
-        tempWorld
-      );
-
-    if (
-      distance <
-      nearestDistance
-    ) {
-      nearestDistance =
-        distance;
-
-      nearestName =
-        planetData.name;
-    }
-  }
-
-  if (
-    nearestDistance !==
-    Infinity
-  ) {
-    distanceElement.textContent =
-      nearestName +
-      " · " +
-      formatDistance(
-        nearestDistance
-      );
-  }
-}
-
-
-/* =========================================================
-   ORBIT VISIBILITY
-   ========================================================= */
-
-function updateOrbitVisibility() {
-  for (
-    const planetData of
-      solarPlanets
-  ) {
-    if (
-      planetData.orbitLine
-    ) {
-      planetData.orbitLine.visible =
-        orbitLinesVisible;
-    }
-  }
-}
-
-
-/* =========================================================
-   NORTH / HEADING RESET
-   ========================================================= */
-
-function resetNorth() {
-  yaw = 0;
-  pitch = 0;
-
-  updateCameraRotation();
-}
-
-
-/* =========================================================
-   CINEMATIC MODE
-   ========================================================= */
-
-function updateCinematicMode() {
-  if (
-    !gameUI
-  ) {
-    return;
-  }
-
-  if (
-    cinematicMode
-  ) {
-    gameUI.classList.add(
-      "cinematic"
-    );
-  } else {
-    gameUI.classList.remove(
-      "cinematic"
-    );
-  }
-}
-
-
-/* =========================================================
-   CREATOR TELEPORT
-   ========================================================= */
-
-function teleportToBody(
-  bodyName
-) {
-  const target =
-    solarPlanets.find(
-      (item) =>
-        item.name ===
-        bodyName
-    );
-
-  if (
-    !target ||
-    !target.planet
-  ) {
-    return;
-  }
-
-  target.planet
-    .getWorldPosition(
-      tempWorld
-    );
-
-  camera.position.copy(
-    tempWorld
-  );
-
-  camera.position.z +=
-    target.radius *
-    12;
-
-  camera.lookAt(
-    tempWorld
-  );
-
-  camera.rotation
-    .reorder(
-      "YXZ"
-    );
-
-  yaw =
-    camera.rotation.y;
-
-  pitch =
-    camera.rotation.x;
-}
-
-
-/* =========================================================
-   CREATOR MODE
-   ========================================================= */
-
-function enterCreatorMode() {
-  setSpeedMode(
-    "creator"
-  );
-
-  resetCreatorPinch();
-
-  const earth =
-    solarPlanets.find(
-      (item) =>
-        item.name ===
-        "Earth"
-    );
-
-  if (
-    earth
-  ) {
-    earth.planet
-      .getWorldPosition(
-        tempWorld
-      );
-
-    camera.position.copy(
-      tempWorld
-    );
-
-    camera.position.z +=
-      EARTH_GAME_RADIUS *
-      20;
-
-    camera.lookAt(
-      tempWorld
-    );
-
-    camera.rotation
-      .reorder(
-        "YXZ"
-      );
-
-    yaw =
-      camera.rotation.y;
-
-    pitch =
-      camera.rotation.x;
-  }
-}
-
-
-/* =========================================================
-   INPUT HELPERS
-   ========================================================= */
-
-function controlPressed(
-  controlName
-) {
-  const keys =
-    controlKeys[
-      controlName
-    ];
-
-  if (
-    !keys
-  ) {
-    return false;
-  }
-
-  return keys.some(
-    (key) =>
-      pressedKeys.has(
-        key
-      )
-  );
-}
-
-
-function refreshPressedControls() {
-  pressedControls.clear();
-
-  for (
-    const controlName of
-      Object.keys(
-        controlKeys
-      )
-  ) {
-    if (
-      controlPressed(
-        controlName
-      )
-    ) {
-      pressedControls.add(
-        controlName
-      );
-    }
-  }
-}
-
-
-/* =========================================================
-   POINTER INPUT
-   ========================================================= */
-
-function handlePointerDown(
-  event
-) {
-  activeTouchPointers.set(
-    event.pointerId,
-    event
-  );
-
-  if (
-    activeTouchPointers.size ===
-    2 &&
-    currentSpeedMode ===
-      "creator"
-  ) {
-    beginCreatorPinch();
-    return;
-  }
-
-  dragging = true;
-
-  lastPointerX =
-    event.clientX;
-
-  lastPointerY =
-    event.clientY;
-}
-
-
-function handlePointerMove(
-  event
-) {
-  if (
-    activeTouchPointers.has(
-      event.pointerId
-    )
-  ) {
-    activeTouchPointers.set(
-      event.pointerId,
-      event
-    );
-  }
-
-  if (
-    creatorPinching
-  ) {
-    updateCreatorPinch();
-    return;
-  }
-
-  if (
-    !dragging
-  ) {
-    return;
-  }
-
-  const dx =
-    event.clientX -
-    lastPointerX;
-
-  const dy =
-    event.clientY -
-    lastPointerY;
-
-  lastPointerX =
-    event.clientX;
-
-  lastPointerY =
-    event.clientY;
-
-  yaw -=
-    dx *
-    lookSensitivity;
-
-  pitch -=
-    dy *
-    lookSensitivity;
-
-  pitch =
-    THREE.MathUtils.clamp(
-      pitch,
-      -Math.PI / 2,
-      Math.PI / 2
-    );
-
-  updateCameraRotation();
-}
-
-
-function handlePointerUp(
-  event
-) {
-  activeTouchPointers.delete(
-    event.pointerId
-  );
-
-  if (
-    creatorPinching
-  ) {
-    endCreatorPinch();
-    return;
-  }
-
-  dragging = false;
-}
-
-
-/* =========================================================
-   KEYBOARD INPUT
-   ========================================================= */
-
-function handleKeyDown(
-  event
-) {
-  const key =
-    event.key.toLowerCase();
-
-  pressedKeys.add(
-    key
-  );
-
-  refreshPressedControls();
-
-  if (
-    [
-      " ",
-      "arrowup",
-      "arrowdown",
-      "arrowleft",
-      "arrowright"
-    ].includes(
-      key
-    )
-  ) {
-    event.preventDefault();
-  }
-
-  if (
-    key === "1"
-  ) {
-    setSpeedMode(
-      "chill"
-    );
-  }
-
-  if (
-    key === "2"
-  ) {
-    setSpeedMode(
-      "superman"
-    );
-  }
-
-  if (
-    key === "3"
-  ) {
-    enterCreatorMode();
-  }
-}
-
-
-function handleKeyUp(
-  event
-) {
-  const key =
-    event.key.toLowerCase();
-
-  pressedKeys.delete(
-    key
-  );
-
-  refreshPressedControls();
-}
-
-
-/* =========================================================
-   RESIZE
-   ========================================================= */
-
-function handleResize() {
-  if (
-    !camera ||
-    !renderer
-  ) {
-    return;
-  }
-
-  camera.aspect =
-    window.innerWidth /
-    window.innerHeight;
-
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(
-    window.innerWidth,
-    window.innerHeight
-  );
-}
-
-
-/* =========================================================
-   THREE.JS INIT
-   ========================================================= */
-
-function initializeThree() {
-  scene =
-    new THREE.Scene();
-
-  scene.background =
-    new THREE.Color(
-      0x000000
-    );
-
-  camera =
-    new THREE.PerspectiveCamera(
-      70,
-
-      window.innerWidth /
-        window.innerHeight,
-
-      0.1,
-
-      60_000_000
-    );
-
-  camera.position.set(
-    0,
-    0,
-    EARTH_GAME_RADIUS *
-      65
-  );
-
-  camera.rotation.order =
-    "YXZ";
-
-  camera.rotation.x =
-    pitch;
-
-  camera.rotation.y =
-    yaw;
 
   renderer =
-    new THREE.WebGLRenderer(
-      {
-        antialias:
-          true,
+    new THREE.WebGLRenderer({
+      antialias:
+        true,
 
-        logarithmicDepthBuffer:
-          true
-      }
-    );
+      alpha:
+        false
+    });
 
   renderer.setPixelRatio(
     Math.min(
-      window.devicePixelRatio,
-      2
+      window.devicePixelRatio ||
+        1,
+
+      1.75
     )
   );
 
@@ -3634,415 +3246,1055 @@ function initializeThree() {
     THREE.ACESFilmicToneMapping;
 
   renderer.toneMappingExposure =
-    1;
+    1.05;
 
-  gameElement.appendChild(
+  gameElement.prepend(
     renderer.domElement
   );
 
-  solarSystemRoot =
-    new THREE.Group();
-
-  scene.add(
-    solarSystemRoot
+  renderer.domElement.setAttribute(
+    "aria-label",
+    "Interactive 3D Solar System"
   );
 
-  createSun();
+  renderer.domElement.setAttribute(
+    "role",
+    "application"
+  );
 
-  for (
-    const data of
-      planetData
-  ) {
-    createPlanet(
-      data
+
+  /* =======================================================
+     INITIAL CAMERA
+     ======================================================= */
+
+  const earthData =
+    solarPlanets.find(
+      (planet) =>
+        planet.name ===
+        "Earth"
     );
+
+  if (
+    earthData
+  ) {
+    earthData.planet.getWorldPosition(
+      tempWorld
+    );
+
+    camera.position.copy(
+      tempWorld
+    );
+
+    camera.position.z +=
+      140 *
+      SOLAR_SYSTEM_SCALE;
   }
 
-  createMoon();
+  updateSunWorldPosition();
 
-  createStars();
+  updateSpeedButtons();
+  updateVisualToggleButtons();
+  updateEnergyDisplay();
 
   window.addEventListener(
     "resize",
-    handleResize
+    () => {
+      camera.aspect =
+        window.innerWidth /
+        window.innerHeight;
+
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(
+        window.innerWidth,
+        window.innerHeight
+      );
+    }
   );
-
-  renderer.domElement.addEventListener(
-    "pointerdown",
-    handlePointerDown
-  );
-
-  renderer.domElement.addEventListener(
-    "pointermove",
-    handlePointerMove
-  );
-
-  renderer.domElement.addEventListener(
-    "pointerup",
-    handlePointerUp
-  );
-
-  renderer.domElement.addEventListener(
-    "pointercancel",
-    handlePointerUp
-  );
-
-  window.addEventListener(
-    "keydown",
-    handleKeyDown
-  );
-
-  window.addEventListener(
-    "keyup",
-    handleKeyUp
-  );
-
-  updateOrbits(
-    0
-  );
-
-  updateVisualBodyScales();
-
-  updateCameraRotation();
-
-  updateOrbitVisibility();
-
-  updateSpeedUI();
-
-  loadingScreen.style.display =
-    "none";
 }
 
 
 /* =========================================================
-   STARS
+   SUN VISIBILITY
    ========================================================= */
 
-function createStars() {
-  const starCount =
-    5000;
-
-  const positions =
-    new Float32Array(
-      starCount * 3
+function getSunVisibilityState() {
+  tempToSun
+    .subVectors(
+      sunPosition,
+      camera.position
     );
 
-  for (
-    let i = 0;
-    i < starCount;
-    i += 1
+  const distance =
+    tempToSun.length();
+
+  if (
+    distance <= 0.001
   ) {
-    const radius =
-      THREE.MathUtils.randFloat(
-        5_000,
-        25_000
+    return {
+      visible:
+        true,
+
+      pixels:
+        100
+    };
+  }
+
+  tempToSun.normalize();
+
+  raycaster.set(
+    camera.position,
+    tempToSun
+  );
+
+  const hits =
+    raycaster.intersectObjects(
+      sunOccluders,
+      false
+    );
+
+  const visible =
+    hits.length === 0;
+
+  const sunWorldPosition =
+    sunPosition;
+
+  tempProjected
+    .copy(
+      sunWorldPosition
+    )
+    .project(
+      camera
+    );
+
+  const visibleOnScreen =
+    tempProjected.z > -1 &&
+    tempProjected.z < 1 &&
+    tempProjected.x > -1 &&
+    tempProjected.x < 1 &&
+    tempProjected.y > -1 &&
+    tempProjected.y < 1;
+
+  const pixels =
+    visibleOnScreen
+      ? (
+          SUN_RADIUS /
+          distance
+        ) *
+        window.innerHeight *
+        0.5
+      : 0;
+
+  return {
+    visible:
+      visible &&
+      visibleOnScreen,
+
+    pixels
+  };
+}
+
+
+/* =========================================================
+   SUN + RECHARGE
+   ========================================================= */
+
+function updateSunAndEnergy(
+  deltaTime
+) {
+  const state =
+    getSunVisibilityState();
+
+  if (
+    sunSprite
+  ) {
+    if (
+      state.visible
+    ) {
+      const distance =
+        camera.position.distanceTo(
+          sunPosition
+        );
+
+      const minimumPixels =
+        2.5;
+
+      const targetPixels =
+        Math.max(
+          minimumPixels,
+          Math.min(
+            180,
+            (
+              SUN_RADIUS /
+              distance
+            ) *
+            window.innerHeight *
+            0.72
+          )
+        );
+
+      sunSprite.scale.set(
+        targetPixels,
+        targetPixels,
+        1
       );
 
-    const theta =
-      Math.random() *
-      Math.PI *
-      2;
+      sunSprite.material.opacity =
+        state.pixels <
+        minimumPixels
+          ? 0.95
+          : 0.32;
+    } else {
+      sunSprite.material.opacity =
+        0;
+    }
+  }
 
-    const phi =
+  if (
+    currentSpeedMode ===
+      "superman" &&
+    state.visible
+  ) {
+    energy =
+      Math.min(
+        100,
+
+        energy +
+          ENERGY_RECHARGE_RATE *
+            deltaTime
+      );
+  }
+
+  updateEnergyDisplay();
+}
+
+
+/* =========================================================
+   ENERGY DRAIN
+   ========================================================= */
+
+function updateEnergy(
+  deltaTime,
+  isMoving
+) {
+  if (
+    !gameStarted ||
+    !isMoving ||
+    currentSpeedMode !==
+      "superman"
+  ) {
+    return;
+  }
+
+  energy =
+    Math.max(
+      0,
+
+      energy -
+        speedModes.superman
+          .drainRate *
+        deltaTime
+    );
+
+  if (
+    energy === 0
+  ) {
+    setSpeedMode(
+      "chill"
+    );
+  }
+}
+
+
+/* =========================================================
+   MOVEMENT
+   ========================================================= */
+
+function isControlPressed(
+  controlName
+) {
+  const keys =
+    controlKeys[
+      controlName
+    ];
+
+  if (
+    !keys
+  ) {
+    return false;
+  }
+
+  for (
+    const key of
+      keys
+  ) {
+    if (
+      pressedControls.has(
+        controlName
+      ) ||
+      pressedKeys.has(
+        key
+      )
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
+function getCollisionBodies() {
+  const bodies = [];
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (
+      !planetData.planet ||
+      !planetData.radius
+    ) {
+      continue;
+    }
+
+    bodies.push({
+      mesh:
+        planetData.planet,
+
+      radius:
+        planetData.radius
+    });
+  }
+
+  if (
+    moonMesh
+  ) {
+    bodies.push({
+      mesh:
+        moonMesh,
+
+      radius:
+        MOON_RADIUS
+    });
+  }
+
+  return bodies;
+}
+
+
+function resolveBodyCollisions(
+  previousPosition,
+  proposedPosition
+) {
+  const bodies =
+    getCollisionBodies();
+
+  collisionStart.copy(
+    previousPosition
+  );
+
+  collisionDelta
+    .subVectors(
+      proposedPosition,
+      previousPosition
+    );
+
+  const movementLengthSq =
+    collisionDelta.lengthSq();
+
+  if (
+    movementLengthSq <
+    0.000001
+  ) {
+    return;
+  }
+
+  for (
+    const body of bodies
+  ) {
+    body.mesh.getWorldPosition(
+      collisionCenter
+    );
+
+    /*
+     * IMPORTANT:
+     * Collision continues to use the original physical radius.
+     * The visual-assist scale never enters this calculation.
+     */
+    const radius =
+      body.radius +
+      COLLISION_MARGIN;
+
+    const startOffset =
+      new THREE.Vector3()
+        .subVectors(
+          collisionStart,
+          collisionCenter
+        );
+
+    const startDistance =
+      startOffset.length();
+
+    if (
+      startDistance < radius
+    ) {
+      collisionPush
+        .copy(startOffset)
+        .normalize();
+
+      if (
+        collisionPush.lengthSq() <
+        0.000001
+      ) {
+        collisionPush.set(
+          0,
+          0,
+          1
+        );
+      }
+
+      proposedPosition
+        .copy(collisionCenter)
+        .addScaledVector(
+          collisionPush,
+          radius
+        );
+
+      continue;
+    }
+
+    const toCenter =
+      new THREE.Vector3()
+        .subVectors(
+          collisionCenter,
+          collisionStart
+        );
+
+    const t =
+      THREE.MathUtils.clamp(
+        toCenter.dot(collisionDelta) /
+        movementLengthSq,
+        0,
+        1
+      );
+
+    collisionClosest
+      .copy(collisionStart)
+      .addScaledVector(
+        collisionDelta,
+        t
+      );
+
+    const closestDistance =
+      collisionClosest.distanceTo(
+        collisionCenter
+      );
+
+    if (
+      closestDistance >
+      radius
+    ) {
+      continue;
+    }
+
+    collisionPush
+      .subVectors(
+        collisionClosest,
+        collisionCenter
+      );
+
+    if (
+      collisionPush.lengthSq() <
+      0.000001
+    ) {
+      collisionPush
+        .copy(
+          collisionStart
+        )
+        .sub(
+          collisionCenter
+        );
+    }
+
+    collisionPush.normalize();
+
+    const safeT =
+      Math.max(
+        0,
+        t -
+          radius /
+          Math.sqrt(
+            movementLengthSq
+          )
+      );
+
+    proposedPosition
+      .copy(collisionStart)
+      .addScaledVector(
+        collisionDelta,
+        safeT
+      );
+
+    proposedPosition
+      .sub(
+        collisionCenter
+      )
+      .normalize()
+      .multiplyScalar(
+        radius
+      )
+      .add(
+        collisionCenter
+      );
+  }
+}
+
+
+function updateMovement(
+  deltaTime
+) {
+  updateMovementSpeed(
+    deltaTime
+  );
+
+  if (
+    !gameStarted
+  ) {
+    return false;
+  }
+
+  tempDirection.set(
+    0,
+    0,
+    0
+  );
+
+  camera.getWorldDirection(
+    tempDirection
+  );
+
+  tempRight.crossVectors(
+    tempDirection,
+    worldUp
+  ).normalize();
+
+  const movingForward =
+    isControlPressed(
+      "forward"
+    );
+
+  const movingBack =
+    isControlPressed(
+      "back"
+    );
+
+  const movingLeft =
+    isControlPressed(
+      "left"
+    );
+
+  const movingRight =
+    isControlPressed(
+      "right"
+    );
+
+  const movingUp =
+    isControlPressed(
+      "up"
+    );
+
+  const movingDown =
+    isControlPressed(
+      "down"
+    );
+
+  if (
+    !movingForward &&
+    !movingBack &&
+    !movingLeft &&
+    !movingRight &&
+    !movingUp &&
+    !movingDown
+  ) {
+    return false;
+  }
+
+  const previousPosition =
+    camera.position.clone();
+
+  const proposedPosition =
+    camera.position.clone();
+
+  if (
+    movingForward
+  ) {
+    proposedPosition.addScaledVector(
+      tempDirection,
+      currentMovementSpeed *
+        deltaTime
+    );
+  }
+
+  if (
+    movingBack
+  ) {
+    proposedPosition.addScaledVector(
+      tempDirection,
+      -currentMovementSpeed *
+        deltaTime
+    );
+  }
+
+  if (
+    movingRight
+  ) {
+    proposedPosition.addScaledVector(
+      tempRight,
+      currentMovementSpeed *
+        deltaTime
+    );
+  }
+
+  if (
+    movingLeft
+  ) {
+    proposedPosition.addScaledVector(
+      tempRight,
+      -currentMovementSpeed *
+        deltaTime
+    );
+  }
+
+  if (
+    movingUp
+  ) {
+    proposedPosition.addScaledVector(
+      worldUp,
+      currentMovementSpeed *
+        deltaTime
+    );
+  }
+
+  if (
+    movingDown
+  ) {
+    proposedPosition.addScaledVector(
+      worldUp,
+      -currentMovementSpeed *
+        deltaTime
+    );
+  }
+
+  resolveBodyCollisions(
+    previousPosition,
+    proposedPosition
+  );
+
+  camera.position.copy(
+    proposedPosition
+  );
+
+  return true;
+}
+
+
+/* =========================================================
+   REAL-TIME ORBITS
+   ========================================================= */
+
+function updateOrbits(
+  deltaTime
+) {
+  const daysSinceJ2000 =
+    updateAstronomicalClock();
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (
+      planetData.isSun
+    ) {
+      continue;
+    }
+
+    /*
+     * Planetary orbital state is tied to the host clock.
+     * The existing startMeanAnomaly values are the J2000
+     * reference states, so the same Kepler model now advances
+     * from the actual device date instead of from page load.
+     */
+    planetData.meanAnomaly =
+      getPlanetMeanAnomalyAtDate(
+        planetData.sourceData,
+        astronomicalDate
+      );
+
+    const eccentricAnomaly =
+      solveEccentricAnomaly(
+        planetData.meanAnomaly,
+        planetData.eccentricity
+      );
+
+    planetData
+      .orbitalBodyGroup
+      .position.copy(
+        getEllipsePosition(
+          planetData.semiMajorAxis,
+          planetData.eccentricity,
+          eccentricAnomaly
+        )
+      );
+
+    const elapsedSeconds =
+      daysSinceJ2000 *
+      SECONDS_PER_DAY;
+
+    planetData.planet.rotation.y =
+      normalizeRadians(
+        planetData.spinSpeed *
+        elapsedSeconds
+      );
+
+    if (
+      planetData.cloudMesh
+    ) {
+      planetData.cloudMesh.rotation.y =
+        normalizeRadians(
+          planetData.spinSpeed *
+          0.94 *
+          elapsedSeconds
+        );
+    }
+  }
+
+  if (
+    moonPivot &&
+    moonMesh
+  ) {
+    const phaseState =
+      getLunarPhaseState(
+        astronomicalDate
+      );
+
+    moonPhaseAngle =
+      phaseState.phaseAngle;
+
+    moonIlluminationFraction =
+      phaseState.illuminationFraction;
+
+    /*
+     * Recover the Sun's geocentric ecliptic longitude from the
+     * already-date-synchronized Earth orbit.  Our game maps the
+     * ecliptic +Z axis to game -Z.
+     */
+    const earthRecord =
+      solarPlanets.find(
+        (planetData) =>
+          planetData.name ===
+          "Earth"
+      );
+
+    let sunEclipticLongitude =
+      0;
+
+    if (
+      earthRecord
+    ) {
+      earthRecord
+        .orbitalBodyGroup
+        .getWorldPosition(
+          collisionCenter
+        );
+
+      const sunFromEarthX =
+        -collisionCenter.x;
+
+      const sunFromEarthZ =
+        -collisionCenter.z;
+
+      sunEclipticLongitude =
+        Math.atan2(
+          -sunFromEarthZ,
+          sunFromEarthX
+        );
+    }
+
+    moonOrbitalPosition.copy(
+      getMoonEclipticPosition(
+        daysSinceJ2000,
+        moonPhaseAngle,
+        sunEclipticLongitude
+      )
+    );
+
+    moonMesh.position.set(
+      moonOrbitalPosition.x,
+      moonOrbitalPosition.y,
+      -moonOrbitalPosition.z
+    );
+
+    const moonWorldPosition =
+      moonMesh.getWorldPosition(
+        tempWorld
+      );
+
+    /*
+     * Approximate tidal locking so the near side remains aimed
+     * generally toward Earth as the Moon travels around it.
+     */
+    moonMesh.rotation.y =
+      Math.atan2(
+        -moonMesh.position.x,
+        -moonMesh.position.z
+      );
+
+    moonSunDirection
+      .subVectors(
+        sunPosition,
+        moonWorldPosition
+      )
+      .normalize();
+
+    const earthWorldPosition =
+      moonPivot.parent
+        ? moonPivot.parent.getWorldPosition(
+            collisionCenter
+          )
+        : collisionCenter.set(
+            0,
+            0,
+            0
+          );
+
+    const moonToEarth =
+      new THREE.Vector3()
+        .subVectors(
+          earthWorldPosition,
+          moonWorldPosition
+        )
+        .normalize();
+
+    /*
+     * Physical illumination check from the actual three-body
+     * geometry.  The visible renderer is still produced by the
+     * Sun's PointLight hitting the Moon's StandardMaterial.
+     */
+    const physicalPhaseAngle =
       Math.acos(
-        THREE.MathUtils.randFloat(
+        THREE.MathUtils.clamp(
+          moonSunDirection.dot(
+            moonToEarth
+          ),
           -1,
           1
         )
       );
 
-    positions[
-      i * 3
-    ] =
-      radius *
-      Math.sin(phi) *
-      Math.cos(theta);
-
-    positions[
-      i * 3 + 1
-    ] =
-      radius *
-      Math.cos(phi);
-
-    positions[
-      i * 3 + 2
-    ] =
-      radius *
-      Math.sin(phi) *
-      Math.sin(theta);
+    moonIlluminationFraction =
+      (1 -
+        Math.cos(
+          physicalPhaseAngle
+        )) *
+      0.5;
   }
-
-  const geometry =
-    new THREE.BufferGeometry();
-
-  geometry.setAttribute(
-    "position",
-    new THREE.BufferAttribute(
-      positions,
-      3
-    )
-  );
-
-  const material =
-    new THREE.PointsMaterial(
-      {
-        color:
-          0xffffff,
-
-        size:
-          2,
-
-        sizeAttenuation:
-          false
-      }
-    );
-
-  stars =
-    new THREE.Points(
-      geometry,
-      material
-    );
-
-  scene.add(
-    stars
-  );
 }
 
 
-function updateStars() {
+/* =========================================================
+   CREATOR TELEPORT
+   ========================================================= */
+
+function teleportToPlanet(
+  planetData
+) {
   if (
-    !stars ||
-    !camera
+    currentSpeedMode !==
+    "creator"
   ) {
     return;
   }
 
-  stars.position.copy(
-    camera.position
-  );
-}
-
-
-/* =========================================================
-   UI EVENTS
-   ========================================================= */
-
-function setupUI() {
-  if (
-    startButton
-  ) {
-    startButton.addEventListener(
-      "click",
-      () => {
-        gameStarted =
-          true;
-
-        startScreen.style.display =
-          "none";
-
-        gameElement.style.display =
-          "block";
-
-        gameUI.style.display =
-          "block";
-
-        if (
-          !scene
-        ) {
-          initializeThree();
-        }
-
-        clock.start();
-
-        animate();
-      }
+  planetData
+    .planet
+    .getWorldPosition(
+      tempWorld
     );
-  }
 
-  if (
-    uiToggle
-  ) {
-    uiToggle.addEventListener(
-      "click",
-      () => {
-        uiMenuVisible =
-          !uiMenuVisible;
-
-        gameUI.classList.toggle(
-          "menu-open",
-          uiMenuVisible
-        );
-      }
-    );
-  }
-
-  if (
-    northButton
-  ) {
-    northButton.addEventListener(
-      "click",
-      resetNorth
-    );
-  }
-
-  const chillButton =
-    $("speed-chill");
-
-  const supermanButton =
-    $("speed-superman");
-
-  const creatorButton =
-    $("speed-creator");
-
-  if (
-    chillButton
-  ) {
-    chillButton.addEventListener(
-      "click",
-      () =>
-        setSpeedMode(
-          "chill"
-        )
-    );
-  }
-
-  if (
-    supermanButton
-  ) {
-    supermanButton.addEventListener(
-      "click",
-      () =>
-        setSpeedMode(
-          "superman"
-        )
-    );
-  }
-
-  if (
-    creatorButton
-  ) {
-    creatorButton.addEventListener(
-      "click",
-      () =>
-        enterCreatorMode()
-    );
-  }
-
-  const labelsButton =
-    $("toggle-labels");
-
-  if (
-    labelsButton
-  ) {
-    labelsButton.addEventListener(
-      "click",
-      () => {
-        planetLabelsVisible =
-          !planetLabelsVisible;
-      }
-    );
-  }
-
-  const orbitButton =
-    $("toggle-orbits");
-
-  if (
-    orbitButton
-  ) {
-    orbitButton.addEventListener(
-      "click",
-      () => {
-        orbitLinesVisible =
-          !orbitLinesVisible;
-
-        updateOrbitVisibility();
-      }
-    );
-  }
-
-  const distanceButton =
-    $("toggle-distance");
-
-  if (
-    distanceButton
-  ) {
-    distanceButton.addEventListener(
-      "click",
-      () => {
-        distanceVisible =
-          !distanceVisible;
-      }
-    );
-  }
-
-  const cinematicButton =
-    $("cinematic-button");
-
-  if (
-    cinematicButton
-  ) {
-    cinematicButton.addEventListener(
-      "click",
-      () => {
-        cinematicMode =
-          !cinematicMode;
-
-        updateCinematicMode();
-      }
-    );
-  }
-}
-
-
-/* =========================================================
-   ERROR HANDLING
-   ========================================================= */
-
-window.addEventListener(
-  "error",
-  (event) => {
-    if (
-      !errorScreen ||
-      !errorMessage
-    ) {
-      return;
-    }
-
-    errorMessage.textContent =
-      event.error?.message ||
-      event.message ||
-      "Unknown error";
-
-    errorScreen.style.display =
-      "block";
-  }
-);
-
-
-window.addEventListener(
-  "unhandledrejection",
-  (event) => {
-    if (
-      !errorScreen ||
-      !errorMessage
-    ) {
-      return;
-    }
-
-    errorMessage.textContent =
-      event.reason?.message ||
-      String(
-        event.reason
+  const away =
+    new THREE.Vector3()
+      .subVectors(
+        camera.position,
+        tempWorld
       );
 
-    errorScreen.style.display =
-      "block";
+  if (
+    away.lengthSq() <
+    0.001
+  ) {
+    away.set(
+      0,
+      1,
+      0
+    );
+  } else {
+    away.normalize();
   }
-);
+
+  const standOff =
+    Math.max(
+      planetData.radius *
+        3.5,
+
+      30
+    );
+
+  camera.position
+    .copy(
+      tempWorld
+    )
+    .addScaledVector(
+      away,
+      standOff
+    );
+
+  tempDirection
+    .subVectors(
+      tempWorld,
+      camera.position
+    )
+    .normalize();
+
+  yaw =
+    Math.atan2(
+      -tempDirection.x,
+      -tempDirection.z
+    );
+
+  pitch =
+    Math.asin(
+      THREE.MathUtils.clamp(
+        tempDirection.y,
+        -1,
+        1
+      )
+    );
+
+  pitch =
+    THREE.MathUtils.clamp(
+      pitch,
+      -Math.PI / 2 + 0.05,
+      Math.PI / 2 - 0.05
+    );
+
+  camera.rotation.set(
+    pitch,
+    yaw,
+    0
+  );
+
+  rebaseSolarSystemIfNeeded();
+}
 
 
 /* =========================================================
-   MAIN LOOP
+   LABEL UPDATE
+   ========================================================= */
+
+function updateLabels() {
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (
+      !planetLabelsVisible ||
+      cinematicMode
+    ) {
+      planetData.label.style.opacity =
+        "0";
+
+      continue;
+    }
+
+    planetData
+      .planet
+      .getWorldPosition(
+        tempWorld
+      );
+
+    const distanceFromCamera =
+      camera.position.distanceTo(
+        tempWorld
+      );
+
+    if (
+      planetData.labelDistance
+    ) {
+      planetData.labelDistance.textContent =
+        formatDistance(
+          distanceFromCamera
+        );
+
+      planetData.labelDistance.style.display =
+        distanceVisible
+          ? ""
+          : "none";
+    }
+
+    tempProjected
+      .copy(
+        tempWorld
+      )
+      .project(
+        camera
+      );
+
+    const visible =
+      tempProjected.z > -1 &&
+      tempProjected.z < 1 &&
+      tempProjected.x > -1.1 &&
+      tempProjected.x < 1.1 &&
+      tempProjected.y > -1.1 &&
+      tempProjected.y < 1.1;
+
+    if (
+      !visible
+    ) {
+      planetData.label.style.opacity =
+        "0";
+
+      continue;
+    }
+
+    planetData.label.style.left =
+      `${
+        (
+          tempProjected.x *
+            0.5 +
+          0.5
+        ) *
+        window.innerWidth
+      }px`;
+
+    planetData.label.style.top =
+      `${
+        (
+          -tempProjected.y *
+            0.5 +
+          0.5
+        ) *
+        window.innerHeight
+      }px`;
+
+    planetData.label.style.opacity =
+      "1";
+  }
+}
+
+
+/* =========================================================
+   ANIMATION LOOP
    ========================================================= */
 
 function animate() {
@@ -4053,38 +4305,47 @@ function animate() {
   const deltaTime =
     Math.min(
       clock.getDelta(),
-      0.1
+      0.05
     );
 
   updateOrbits(
     deltaTime
   );
 
-  updateMovement(
-    deltaTime
+  const isMoving =
+    updateMovement(
+      deltaTime
+    );
+
+  rebaseSolarSystemIfNeeded();
+
+  /*
+   * Visual size assist happens AFTER movement/origin rebasing
+   * so each body's distance is calculated from its current,
+   * correct world position.
+   *
+   * This changes only planet/Moon rendering scale.
+   */
+  updateVisualAssistScale();
+
+  updateEnergy(
+    deltaTime,
+    isMoving
   );
 
   updateSunAndEnergy(
     deltaTime
   );
 
-  /*
-   * Render-only planet readability system.
-   *
-   * IMPORTANT:
-   * This happens after physics/orbits/movement.
-   * It does NOT alter physical radii or collision bodies.
-   */
-
-  updateVisualBodyScales();
-
-  rebaseSolarSystemIfNeeded();
-
-  updateStars();
-
   updateLabels();
 
-  updateDistanceUI();
+  if (
+    stars
+  ) {
+    stars.position.copy(
+      camera.position
+    );
+  }
 
   renderer.render(
     scene,
@@ -4094,16 +4355,541 @@ function animate() {
 
 
 /* =========================================================
+   START GAME
+   ========================================================= */
+
+function startGame() {
+  if (
+    gameStarted
+  ) {
+    return;
+  }
+
+  gameStarted =
+    true;
+
+  startScreen.hidden =
+    true;
+
+  gameUI.hidden =
+    false;
+
+  renderer.domElement.focus();
+}
+
+
+/* =========================================================
+   CONTROLS
+   ========================================================= */
+
+function setupControls() {
+  const canvas =
+    renderer.domElement;
+
+  canvas.style.touchAction =
+    "none";
+
+  const controlButtons =
+    document.querySelectorAll(
+      "[data-control]"
+    );
+
+  const speedButtons =
+    document.querySelectorAll(
+      "[data-speed]"
+    );
+
+  for (
+    const button of
+      speedButtons
+  ) {
+    button.addEventListener(
+      "click",
+      () => {
+        setSpeedMode(
+          button.dataset.speed
+        );
+      }
+    );
+  }
+
+
+  /* =======================================================
+     UI MENU
+     ======================================================= */
+
+  uiToggle.addEventListener(
+    "click",
+    () => {
+      if (
+        cinematicMode
+      ) {
+        setCinematicMode(
+          false
+        );
+
+        setUIMenuVisible(
+          true
+        );
+
+        return;
+      }
+
+      setUIMenuVisible(
+        !uiMenuVisible
+      );
+    }
+  );
+
+
+  /* =======================================================
+     NORTH BUTTON
+     ======================================================= */
+
+  northButton.addEventListener(
+    "click",
+    (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      setNorthHeading();
+    }
+  );
+
+
+  const labelsToggle =
+    $("labels-toggle");
+
+  const orbitsToggle =
+    $("orbits-toggle");
+
+  const distanceToggle =
+    $("distance-toggle");
+
+  const cinematicToggle =
+    $("cinematic-toggle");
+
+
+  labelsToggle.addEventListener(
+    "click",
+    () => {
+      setPlanetLabelsVisible(
+        !planetLabelsVisible
+      );
+    }
+  );
+
+
+  orbitsToggle.addEventListener(
+    "click",
+    () => {
+      setOrbitLinesVisible(
+        !orbitLinesVisible
+      );
+    }
+  );
+
+
+  distanceToggle.addEventListener(
+    "click",
+    () => {
+      setDistanceVisible(
+        !distanceVisible
+      );
+    }
+  );
+
+
+  cinematicToggle.addEventListener(
+    "click",
+    () => {
+      setCinematicMode(
+        !cinematicMode
+      );
+    }
+  );
+
+
+  /* =======================================================
+     FLIGHT BUTTONS
+     ======================================================= */
+
+  for (
+    const button of
+      controlButtons
+  ) {
+    const controlName =
+      button.dataset.control;
+
+    const releaseButton =
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        pressedControls.delete(
+          controlName
+        );
+
+        button.classList.remove(
+          "is-pressed"
+        );
+      };
+
+    button.addEventListener(
+      "pointerdown",
+      (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+
+        pressedControls.add(
+          controlName
+        );
+
+        button.classList.add(
+          "is-pressed"
+        );
+
+        try {
+          button.setPointerCapture(
+            event.pointerId
+          );
+        } catch {
+          // Optional.
+        }
+      }
+    );
+
+    button.addEventListener(
+      "pointerup",
+      releaseButton
+    );
+
+    button.addEventListener(
+      "pointercancel",
+      releaseButton
+    );
+
+    button.addEventListener(
+      "lostpointercapture",
+      () => {
+        pressedControls.delete(
+          controlName
+        );
+
+        button.classList.remove(
+          "is-pressed"
+        );
+      }
+    );
+
+    button.addEventListener(
+      "contextmenu",
+      (event) => {
+        event.preventDefault();
+      }
+    );
+  }
+
+
+  /* =======================================================
+     CAMERA LOOK + CREATOR PINCH
+     ======================================================= */
+
+  canvas.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (
+        !gameStarted ||
+        event.pointerType ===
+          "mouse" &&
+        event.button !== 0
+      ) {
+        return;
+      }
+
+      if (
+        event.pointerType ===
+        "touch"
+      ) {
+        activeTouchPointers.set(
+          event.pointerId,
+          {
+            clientX:
+              event.clientX,
+
+            clientY:
+              event.clientY
+          }
+        );
+
+        if (
+          activeTouchPointers.size ===
+          2 &&
+          currentSpeedMode ===
+            "creator"
+        ) {
+          beginCreatorPinch();
+          return;
+        }
+
+        if (
+          activeTouchPointers.size >
+          1
+        ) {
+          dragging =
+            false;
+
+          return;
+        }
+      }
+
+      if (
+        creatorPinching
+      ) {
+        return;
+      }
+
+      dragging =
+        true;
+
+      lastPointerX =
+        event.clientX;
+
+      lastPointerY =
+        event.clientY;
+
+      try {
+        canvas.setPointerCapture(
+          event.pointerId
+        );
+      } catch {
+        // Optional.
+      }
+    }
+  );
+
+
+  canvas.addEventListener(
+    "pointermove",
+    (event) => {
+      if (
+        event.pointerType ===
+        "touch" &&
+        activeTouchPointers.has(
+          event.pointerId
+        )
+      ) {
+        activeTouchPointers.set(
+          event.pointerId,
+          {
+            clientX:
+              event.clientX,
+
+            clientY:
+              event.clientY
+          }
+        );
+
+        if (
+          activeTouchPointers.size ===
+            2 &&
+          currentSpeedMode ===
+            "creator"
+        ) {
+          updateCreatorPinch();
+          return;
+        }
+      }
+
+      if (
+        !dragging ||
+        !gameStarted ||
+        creatorPinching
+      ) {
+        return;
+      }
+
+      const deltaX =
+        event.clientX -
+        lastPointerX;
+
+      const deltaY =
+        event.clientY -
+        lastPointerY;
+
+      lastPointerX =
+        event.clientX;
+
+      lastPointerY =
+        event.clientY;
+
+      yaw -=
+        deltaX *
+        lookSensitivity;
+
+      pitch -=
+        deltaY *
+        lookSensitivity;
+
+      pitch =
+        THREE.MathUtils.clamp(
+          pitch,
+
+          -Math.PI / 2 +
+            0.05,
+
+          Math.PI / 2 -
+            0.05
+        );
+
+      camera.rotation.set(
+        pitch,
+        yaw,
+        0
+      );
+    }
+  );
+
+
+  const stopDragging =
+    (event) => {
+      if (
+        event &&
+        event.pointerType ===
+          "touch"
+      ) {
+        activeTouchPointers.delete(
+          event.pointerId
+        );
+
+        if (
+          activeTouchPointers.size <
+          2
+        ) {
+          endCreatorPinch();
+        }
+      }
+
+      if (
+        activeTouchPointers.size ===
+        0
+      ) {
+        dragging =
+          false;
+      }
+    };
+
+
+  canvas.addEventListener(
+    "pointerup",
+    stopDragging
+  );
+
+  canvas.addEventListener(
+    "pointercancel",
+    stopDragging
+  );
+
+  canvas.addEventListener(
+    "lostpointercapture",
+    stopDragging
+  );
+
+
+  /* =======================================================
+     KEYBOARD SUPPORT
+     ======================================================= */
+
+  window.addEventListener(
+    "keydown",
+    (event) => {
+      const key =
+        event.key.toLowerCase();
+
+      const allControlKeys =
+        Object.values(
+          controlKeys
+        ).flat();
+
+      if (
+        allControlKeys.includes(
+          key
+        )
+      ) {
+        event.preventDefault();
+
+        pressedKeys.add(
+          key
+        );
+      }
+    }
+  );
+
+
+  window.addEventListener(
+    "keyup",
+    (event) => {
+      pressedKeys.delete(
+        event.key.toLowerCase()
+      );
+    }
+  );
+
+
+  window.addEventListener(
+    "blur",
+    () => {
+      pressedControls.clear();
+
+      pressedKeys.clear();
+
+      controlButtons.forEach(
+        (button) => {
+          button.classList.remove(
+            "is-pressed"
+          );
+        }
+      );
+
+      resetCreatorPinch();
+    }
+  );
+}
+
+
+/* =========================================================
    STARTUP
    ========================================================= */
 
-setupUI();
+startButton.addEventListener(
+  "click",
+  startGame
+);
 
-gameElement.style.display =
-  "none";
 
-gameUI.style.display =
-  "none";
+try {
+  createSolarSystem();
 
-loadingScreen.style.display =
-  "none";
+  loadingScreen.hidden =
+    true;
+
+  startScreen.hidden =
+    false;
+
+} catch (
+  error
+) {
+  console.error(
+    "Could not initialize the Solar System game:",
+    error
+  );
+
+  showError(
+    "The 3D scene could not be initialized. Please check that WebGL is available and reload the page."
+  );
+}
+
+
+setupControls();
+
+animate();
