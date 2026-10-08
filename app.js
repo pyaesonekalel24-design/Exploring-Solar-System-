@@ -360,6 +360,15 @@ const collisionClosest =
 const collisionPush =
   new THREE.Vector3();
 
+const collisionRemaining =
+  new THREE.Vector3();
+
+const collisionNormal =
+  new THREE.Vector3();
+
+const collisionContact =
+  new THREE.Vector3();
+
 const COLLISION_MARGIN =
   1.5;
 
@@ -3335,6 +3344,7 @@ function getCollisionBodies() {
     bodies.push({
       mesh:
         planetData.planet,
+
       radius:
         planetData.radius
     });
@@ -3346,6 +3356,7 @@ function getCollisionBodies() {
     bodies.push({
       mesh:
         moonMesh,
+
       radius:
         MOON_RADIUS
     });
@@ -3354,6 +3365,43 @@ function getCollisionBodies() {
   return bodies;
 }
 
+
+/*
+ * Collision response:
+ *
+ * The old version correctly detected collisions, but it always
+ * pushed the camera back to the sphere surface.  That created
+ * the "glue" effect:
+ *
+ *     player presses forward
+ *          ↓
+ *     player enters sphere
+ *          ↓
+ *     collision pushes player out
+ *          ↓
+ *     next frame forward is pressed again
+ *          ↓
+ *     repeat forever
+ *
+ * This version treats the planet surface like a wall.
+ *
+ * When the movement hits the wall:
+ *
+ *     1. Stop at the contact point.
+ *     2. Calculate the surface normal.
+ *     3. Keep any movement tangent to the surface.
+ *     4. Remove only the movement pointing INTO the body.
+ *
+ * That means:
+ *
+ *     Forward into planet  = blocked
+ *     Back away            = works
+ *     Strafe around planet = works
+ *     Fly diagonally       = slides
+ *
+ * The swept test is still used, so Superman cannot tunnel
+ * through planets just because his movement step is huge.
+ */
 function resolveBodyCollisions(
   previousPosition,
   proposedPosition
@@ -3371,16 +3419,6 @@ function resolveBodyCollisions(
       previousPosition
     );
 
-  const movementLengthSq =
-    collisionDelta.lengthSq();
-
-  if (
-    movementLengthSq <
-    0.000001
-  ) {
-    return;
-  }
-
   for (
     const body of bodies
   ) {
@@ -3392,44 +3430,138 @@ function resolveBodyCollisions(
       body.radius +
       COLLISION_MARGIN;
 
-    const startOffset =
-      new THREE.Vector3()
-        .subVectors(
-          collisionStart,
-          collisionCenter
-        );
-
-    const startDistance =
-      startOffset.length();
+    /*
+     * The movement may have been modified by an earlier body,
+     * so recalculate its current length for every collision test.
+     */
+    const movementLengthSq =
+      collisionDelta.lengthSq();
 
     if (
-      startDistance < radius
+      movementLengthSq <
+      0.000001
     ) {
-      collisionPush
-        .copy(startOffset)
-        .normalize();
+      break;
+    }
 
+    const movementLength =
+      Math.sqrt(
+        movementLengthSq
+      );
+
+    /*
+     * Check where the camera starts relative to the body.
+     */
+    collisionPush
+      .subVectors(
+        collisionStart,
+        collisionCenter
+      );
+
+    const startDistance =
+      collisionPush.length();
+
+    /*
+     * If we are already touching or slightly inside the body,
+     * establish a clean surface normal first.
+     */
+    if (
+      startDistance <=
+      radius
+    ) {
       if (
-        collisionPush.lengthSq() <
+        startDistance >
         0.000001
       ) {
-        collisionPush.set(
-          0,
-          0,
-          1
+        collisionNormal
+          .copy(
+            collisionPush
+          )
+          .divideScalar(
+            startDistance
+          );
+      } else {
+        /*
+         * Extremely unlikely case: camera is exactly at the
+         * body's center.  Push it opposite the current movement.
+         */
+        collisionNormal
+          .copy(
+            collisionDelta
+          )
+          .multiplyScalar(
+            -1
+          );
+
+        if (
+          collisionNormal.lengthSq() <
+          0.000001
+        ) {
+          collisionNormal.set(
+            0,
+            0,
+            1
+          );
+        } else {
+          collisionNormal.normalize();
+        }
+      }
+
+      /*
+       * Put the camera exactly on the safe side of the surface.
+       */
+      collisionContact
+        .copy(
+          collisionCenter
+        )
+        .addScaledVector(
+          collisionNormal,
+          radius
+        );
+
+      /*
+       * Remove only the part of movement pointing inward.
+       *
+       * Tangential movement survives.
+       * Outward movement survives.
+       * Only inward movement is cancelled.
+       */
+      const inwardAmount =
+        collisionDelta.dot(
+          collisionNormal
+        );
+
+      if (
+        inwardAmount < 0
+      ) {
+        collisionDelta.addScaledVector(
+          collisionNormal,
+          -inwardAmount
         );
       }
 
+      collisionStart.copy(
+        collisionContact
+      );
+
       proposedPosition
-        .copy(collisionCenter)
-        .addScaledVector(
-          collisionPush,
-          radius
+        .copy(
+          collisionStart
+        )
+        .add(
+          collisionDelta
         );
 
       continue;
     }
 
+    /*
+     * Swept collision:
+     *
+     * Find the closest point on the movement segment to the body.
+     * This is what prevents high-speed Superman movement from
+     * jumping completely through a planet between frames.
+     */
     const toCenter =
       new THREE.Vector3()
         .subVectors(
@@ -3439,14 +3571,18 @@ function resolveBodyCollisions(
 
     const t =
       THREE.MathUtils.clamp(
-        toCenter.dot(collisionDelta) /
+        toCenter.dot(
+          collisionDelta
+        ) /
         movementLengthSq,
         0,
         1
       );
 
     collisionClosest
-      .copy(collisionStart)
+      .copy(
+        collisionStart
+      )
       .addScaledVector(
         collisionDelta,
         t
@@ -3464,6 +3600,12 @@ function resolveBodyCollisions(
       continue;
     }
 
+    /*
+     * We hit the body.
+     *
+     * Work out the direction from the body's center to the
+     * contact area.
+     */
     collisionPush
       .subVectors(
         collisionClosest,
@@ -3481,28 +3623,55 @@ function resolveBodyCollisions(
         .sub(
           collisionCenter
         );
+
+      if (
+        collisionPush.lengthSq() <
+        0.000001
+      ) {
+        collisionPush
+          .copy(
+            collisionDelta
+          )
+          .multiplyScalar(
+            -1
+          );
+      }
     }
 
-    collisionPush.normalize();
+    collisionNormal
+      .copy(
+        collisionPush
+      )
+      .normalize();
 
+    /*
+     * Stop slightly before the mathematical intersection.
+     *
+     * radius / movementLength is the fraction of the movement
+     * needed to travel one collision radius.
+     */
     const safeT =
       Math.max(
         0,
         t -
           radius /
-          Math.sqrt(
-            movementLengthSq
-          )
+          movementLength
       );
 
-    proposedPosition
-      .copy(collisionStart)
+    collisionContact
+      .copy(
+        collisionStart
+      )
       .addScaledVector(
         collisionDelta,
         safeT
       );
 
-    proposedPosition
+    /*
+     * Put the contact point exactly on the collision sphere.
+     * This removes tiny numerical penetration.
+     */
+    collisionContact
       .sub(
         collisionCenter
       )
@@ -3513,8 +3682,66 @@ function resolveBodyCollisions(
       .add(
         collisionCenter
       );
+
+    /*
+     * There may be movement remaining after the collision.
+     *
+     * Example:
+     *
+     *     camera ---> planet
+     *                /
+     *               /
+     *       desired movement continues
+     *
+     * We keep the sideways part and delete only the part
+     * pointing into the planet.
+     */
+    collisionRemaining
+      .copy(
+        proposedPosition
+      )
+      .sub(
+        collisionContact
+      );
+
+    const remainingInward =
+      collisionRemaining.dot(
+        collisionNormal
+      );
+
+    if (
+      remainingInward < 0
+    ) {
+      collisionRemaining.addScaledVector(
+        collisionNormal,
+        -remainingInward
+      );
+    }
+
+    proposedPosition
+      .copy(
+        collisionContact
+      )
+      .add(
+        collisionRemaining
+      );
+
+    /*
+     * Update the working movement so another body can be
+     * resolved correctly during this same frame.
+     */
+    collisionStart.copy(
+      collisionContact
+    );
+
+    collisionDelta
+      .subVectors(
+        proposedPosition,
+        collisionStart
+      );
   }
 }
+
 
 function updateMovement(
   deltaTime
