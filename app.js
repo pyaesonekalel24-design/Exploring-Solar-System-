@@ -508,200 +508,6 @@ const SOLAR_SYSTEM_SCALE =
 
 
 /* =========================================================
-   VISUAL SIZE ASSIST
-   =========================================================
-
-   IMPORTANT:
-   This system changes ONLY the rendered visual scale of
-   individual bodies.
-
-   It does NOT change:
-   - orbital distance
-   - physical radius used for collision
-   - Moon orbit
-   - Moon phase
-   - lighting
-   - teleport stand-off distance
-   - astronomical calculations
-
-   Each body independently checks its own distance from
-   the camera.
-
-   At or below 37,000 units:
-     normal 1.0x visual size
-
-   Above 37,000 units:
-     smooth visual enlargement begins
-
-   At 1,500,000 units and beyond:
-     maximum 1.65x visual size
-   ========================================================= */
-
-const VISUAL_ASSIST_START_DISTANCE =
-  37_000;
-
-const VISUAL_ASSIST_MAX_DISTANCE =
-  1_500_000;
-
-const VISUAL_ASSIST_MAX_SCALE =
-  1.65;
-
-
-function getVisualAssistScale(
-  distance
-) {
-  if (
-    distance <=
-    VISUAL_ASSIST_START_DISTANCE
-  ) {
-    return 1;
-  }
-
-  const clampedDistance =
-    THREE.MathUtils.clamp(
-      distance,
-
-      VISUAL_ASSIST_START_DISTANCE,
-
-      VISUAL_ASSIST_MAX_DISTANCE
-    );
-
-  const logStart =
-    Math.log(
-      VISUAL_ASSIST_START_DISTANCE
-    );
-
-  const logEnd =
-    Math.log(
-      VISUAL_ASSIST_MAX_DISTANCE
-    );
-
-  const logDistance =
-    Math.log(
-      clampedDistance
-    );
-
-  const normalizedDistance =
-    THREE.MathUtils.clamp(
-      (
-        logDistance -
-        logStart
-      ) /
-      (
-        logEnd -
-        logStart
-      ),
-
-      0,
-
-      1
-    );
-
-  /*
-   * Smoothstep gives us a soft transition instead of a
-   * noticeable size pop when crossing 37,000 units.
-   */
-  const smoothDistance =
-    normalizedDistance *
-    normalizedDistance *
-    (
-      3 -
-      2 *
-      normalizedDistance
-    );
-
-  return THREE.MathUtils.lerp(
-    1,
-    VISUAL_ASSIST_MAX_SCALE,
-    smoothDistance
-  );
-}
-
-
-function updateVisualAssistScale() {
-  if (
-    !camera
-  ) {
-    return;
-  }
-
-  /*
-   * Every solar-system body gets evaluated independently.
-   *
-   * This means:
-   *
-   * 20,000 from Jupiter -> normal Jupiter
-   * 50,000 from Jupiter -> enlarged Jupiter
-   *
-   * while another planet can have a completely different
-   * visual scale at the exact same moment.
-   */
-  for (
-    const planetData of
-      solarPlanets
-  ) {
-    if (
-      planetData.isSun ||
-      !planetData.planet
-    ) {
-      continue;
-    }
-
-    planetData
-      .planet
-      .getWorldPosition(
-        tempWorld
-      );
-
-    const distance =
-      camera.position.distanceTo(
-        tempWorld
-      );
-
-    const visualScale =
-      getVisualAssistScale(
-        distance
-      );
-
-    planetData
-      .planet
-      .scale
-      .setScalar(
-        visualScale
-      );
-  }
-
-  /*
-   * The Moon is not stored inside solarPlanets, so it gets
-   * its own independent visual-assist check.
-   */
-  if (
-    moonMesh
-  ) {
-    moonMesh.getWorldPosition(
-      tempWorld
-    );
-
-    const moonDistance =
-      camera.position.distanceTo(
-        tempWorld
-      );
-
-    const moonVisualScale =
-      getVisualAssistScale(
-        moonDistance
-      );
-
-    moonMesh
-      .scale
-      .setScalar(
-        moonVisualScale
-      );
-  }
-}
-
-
-/* =========================================================
    REAL-TIME ORBITS
    ========================================================= */
 
@@ -748,7 +554,6 @@ const MOON_ORBIT_RADIUS =
 const MOON_ORBIT_PERIOD_DAYS =
   27.322;
 
-
 /*
  * Astronomical clock / date state.
  * The browser's Date object is the host device clock.  We use UTC
@@ -791,7 +596,6 @@ const MOON_MEAN_ANOMALY_AT_J2000_DEGREES =
 const MOON_MEAN_MOTION_DEGREES_PER_DAY =
   13.0649929509;
 
-
 /*
  * Meeus new-moon model.
  * This gives us a real astronomical phase timestamp rather than
@@ -803,14 +607,12 @@ const NEW_MOON_BASE_JD =
 const SYNODIC_MONTH_DAYS =
   29.530588853;
 
-
 function julianDateFromDate(date) {
   return (
     2440587.5 +
     date.getTime() / DAY_MS
   );
 }
-
 
 function dateFromJulianDate(julianDate) {
   return new Date(
@@ -820,7 +622,6 @@ function dateFromJulianDate(julianDate) {
     ) * DAY_MS
   );
 }
-
 
 function getMeeusNewMoonJulianDate(k) {
   const T =
@@ -906,7 +707,6 @@ function getMeeusNewMoonJulianDate(k) {
   );
 }
 
-
 function getLunarPhaseState(date) {
   const julianDate =
     julianDateFromDate(date);
@@ -941,7 +741,6 @@ function getLunarPhaseState(date) {
     julianDate
   ) {
     previousK -= 1;
-
     previousNewMoonJD =
       getMeeusNewMoonJulianDate(
         previousK
@@ -953,7 +752,6 @@ function getLunarPhaseState(date) {
     julianDate
   ) {
     nextK += 1;
-
     nextNewMoonJD =
       getMeeusNewMoonJulianDate(
         nextK
@@ -981,23 +779,19 @@ function getLunarPhaseState(date) {
 
   return {
     phaseAngle,
-
     illuminationFraction:
       (1 - Math.cos(phaseAngle)) *
       0.5,
-
     previousNewMoon:
       dateFromJulianDate(
         previousNewMoonJD
       ),
-
     nextNewMoon:
       dateFromJulianDate(
         nextNewMoonJD
       )
   };
 }
-
 
 let astronomicalDate =
   new Date();
@@ -1016,54 +810,41 @@ let moonPhaseAngle =
 let moonIlluminationFraction =
   1;
 
-
-function getAstronomicalDays(
-  date = new Date()
-) {
+function getAstronomicalDays(date = new Date()) {
   return (
     date.getTime() -
     J2000_EPOCH_MS
   ) / DAY_MS;
 }
 
-
 function normalizeRadians(angle) {
-  const fullTurn =
-    Math.PI * 2;
+  const fullTurn = Math.PI * 2;
 
   angle %= fullTurn;
 
-  if (
-    angle < 0
-  ) {
+  if (angle < 0) {
     angle += fullTurn;
   }
 
   return angle;
 }
 
-
 function normalizeDegrees(angle) {
   angle %= 360;
 
-  if (
-    angle < 0
-  ) {
+  if (angle < 0) {
     angle += 360;
   }
 
   return angle;
 }
 
-
 function getPlanetMeanAnomalyAtDate(
   data,
   date
 ) {
   const days =
-    getAstronomicalDays(
-      date
-    );
+    getAstronomicalDays(date);
 
   const startingMeanAnomaly =
     THREE.MathUtils.degToRad(
@@ -1081,7 +862,6 @@ function getPlanetMeanAnomalyAtDate(
   );
 }
 
-
 function solveKeplerMeanAnomaly(
   meanAnomaly,
   eccentricity
@@ -1089,11 +869,7 @@ function solveKeplerMeanAnomaly(
   let eccentricAnomaly =
     meanAnomaly;
 
-  for (
-    let i = 0;
-    i < 10;
-    i += 1
-  ) {
+  for (let i = 0; i < 10; i += 1) {
     eccentricAnomaly -=
       (
         eccentricAnomaly -
@@ -1110,7 +886,6 @@ function solveKeplerMeanAnomaly(
 
   return eccentricAnomaly;
 }
-
 
 function getMoonEclipticPosition(
   daysSinceJ2000,
@@ -1253,7 +1028,6 @@ function getMoonEclipticPosition(
       Math.sin(targetLongitude)
   );
 }
-
 
 function updateAstronomicalClock() {
   astronomicalDate =
@@ -3561,7 +3335,6 @@ function getCollisionBodies() {
     bodies.push({
       mesh:
         planetData.planet,
-
       radius:
         planetData.radius
     });
@@ -3573,7 +3346,6 @@ function getCollisionBodies() {
     bodies.push({
       mesh:
         moonMesh,
-
       radius:
         MOON_RADIUS
     });
@@ -3581,7 +3353,6 @@ function getCollisionBodies() {
 
   return bodies;
 }
-
 
 function resolveBodyCollisions(
   previousPosition,
@@ -3617,11 +3388,6 @@ function resolveBodyCollisions(
       collisionCenter
     );
 
-    /*
-     * IMPORTANT:
-     * Collision continues to use the original physical radius.
-     * The visual-assist scale never enters this calculation.
-     */
     const radius =
       body.radius +
       COLLISION_MARGIN;
@@ -3749,7 +3515,6 @@ function resolveBodyCollisions(
       );
   }
 }
-
 
 function updateMovement(
   deltaTime
@@ -4318,15 +4083,6 @@ function animate() {
     );
 
   rebaseSolarSystemIfNeeded();
-
-  /*
-   * Visual size assist happens AFTER movement/origin rebasing
-   * so each body's distance is calculated from its current,
-   * correct world position.
-   *
-   * This changes only planet/Moon rendering scale.
-   */
-  updateVisualAssistScale();
 
   updateEnergy(
     deltaTime,
