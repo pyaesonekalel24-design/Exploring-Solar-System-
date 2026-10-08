@@ -1,1046 +1,300 @@
-:root {
-  color-scheme: dark;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #050711;
-  color: #ffffff;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  overflow: hidden;
-  background: #050711;
-}
-
-body {
-  overscroll-behavior: none;
-}
-
-button {
-  font: inherit;
-}
-
-#game {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  overflow: hidden;
-  background: #050711;
-  touch-action: none;
-}
-
-#game canvas {
-  position: absolute;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: 100%;
-  touch-action: none;
-}
-
-
-/* =========================================================
-   SCREENS
-   ========================================================= */
-
-.screen {
-  position: absolute;
-  z-index: 10;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(5, 7, 17, 0.88);
-  text-align: center;
-}
-
-.screen[hidden],
-#game-ui[hidden] {
-  display: none;
-}
-
-.start-card {
-  width: min(100%, 500px);
-  padding: 36px 24px;
-  border: 1px solid rgba(170, 190, 255, 0.25);
-  border-radius: 20px;
-  background: rgba(15, 20, 42, 0.94);
-  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
-}
-
-.start-card h1 {
-  margin: 0 0 26px;
-  font-size: clamp(2rem, 8vw, 3.4rem);
-  letter-spacing: 0.12em;
-}
-
-.start-card > p {
-  margin: 0 0 20px;
-  color: #d4d9ee;
-  font-size: 1rem;
-  line-height: 1.5;
-}
-
-#start-button {
-  min-height: 58px;
-  padding: 0 30px;
-  border: 0;
-  border-radius: 12px;
-  background: #5b8cff;
-  color: #ffffff;
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-#start-button:hover {
-  background: #78a0ff;
-}
-
-#start-button:focus-visible,
-.control-button:focus-visible,
-.speed-button:focus-visible,
-.visual-button:focus-visible,
-#ui-toggle:focus-visible,
-#north-button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.9);
-  outline-offset: 3px;
-}
-
-
-/* =========================================================
-   PLANET LABELS
-   ========================================================= */
-
-#planet-label-layer {
-  position: absolute;
-  z-index: 3;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.planet-label {
-  position: absolute;
-  left: 0;
-  top: 0;
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-
-  padding: 5px 9px;
-
-  border: 1px solid rgba(210, 225, 255, 0.22);
-  border-radius: 999px;
-
-  background: rgba(5, 8, 20, 0.52);
-
-  color: #ffffff;
-
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  line-height: 1;
-
-  text-shadow: 0 1px 5px #000000;
-
-  white-space: nowrap;
-
-  transform: translate(-50%, -125%);
-
-  will-change: transform, left, top, opacity;
-
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-}
-
-.planet-label-name {
-  font-size: 10px;
-  font-weight: 900;
-}
-
-.planet-label-distance {
-  color: rgba(220, 230, 255, 0.72);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-#planet-label-layer.creator-enabled .planet-label {
-  pointer-events: auto;
-  cursor: pointer;
-
-  border-color: rgba(205, 158, 255, 0.62);
-  background: rgba(38, 18, 66, 0.68);
-}
-
-#planet-label-layer.cinematic-hidden {
-  visibility: hidden;
-}
-
-
-/* =========================================================
-   GAME UI
-   ========================================================= */
-
-#game-ui {
-  position: absolute;
-  z-index: 4;
-  inset: 0;
-  pointer-events: none;
-}
-
-#helper-ui {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-
-  transition:
-    opacity 0.22s ease,
-    visibility 0.22s ease;
-}
-
-#game-ui.cinematic-mode #helper-ui {
-  opacity: 0;
-  visibility: hidden;
-}
-
-#game-ui.cinematic-mode #planet-label-layer {
-  visibility: hidden;
-}
-
-
-/* =========================================================
-   ENERGY
-   ========================================================= */
-
-#energy-hud {
-  position: absolute;
-
-  top: max(66px, calc(env(safe-area-inset-top) + 46px));
-  left: max(20px, env(safe-area-inset-left));
-
-  display: flex;
-  align-items: center;
-  gap: 9px;
-
-  width: min(250px, 42vw);
-
-  pointer-events: none;
-
-  opacity: 0;
-
-  transition:
-    opacity 0.2s ease,
-    visibility 0.2s ease;
-}
-
-#game-ui.superman-mode #energy-hud {
-  opacity: 0.62;
-}
-
-#energy-bar {
-  flex: 1;
-
-  height: 5px;
-
-  overflow: hidden;
-
-  border: 1px solid rgba(190, 220, 200, 0.22);
-  border-radius: 999px;
-
-  background: rgba(8, 12, 20, 0.38);
-
-  box-shadow:
-    0 0 12px rgba(60, 220, 110, 0.08);
-}
-
-#energy-fill {
-  width: 100%;
-  height: 100%;
-
-  border-radius: inherit;
-
-  background: #65e68a;
-
-  transition:
-    width 0.12s linear,
-    background-color 0.2s ease;
-}
-
-#energy-percent {
-  min-width: 32px;
-
-  color: rgba(235, 255, 240, 0.8);
-
-  font-size: 0.67rem;
-  font-weight: 800;
-
-  text-align: right;
-
-  text-shadow: 0 1px 5px #000000;
-}
-
-#superman-low-energy {
-  position: absolute;
-
-  top: calc(100% + 6px);
-  left: 0;
-
-  width: max-content;
-  max-width: min(260px, 70vw);
-
-  color: rgba(255, 225, 225, 0.76);
-
-  font-size: 0.58rem;
-  font-weight: 700;
-
-  letter-spacing: 0.015em;
-  line-height: 1.2;
-
-  text-shadow: 0 1px 5px #000000;
-
-  opacity: 0;
-  visibility: hidden;
-
-  transition:
-    opacity 0.18s ease,
-    visibility 0.18s ease;
-}
-
-#game-ui.superman-low-energy #superman-low-energy {
-  opacity: 1;
-  visibility: visible;
-}
-
-
-/* =========================================================
-   SPEED PANEL
-   ========================================================= */
-
-#speed-panel {
-  position: absolute;
-
-  top: max(20px, env(safe-area-inset-top));
-  left: 50%;
-
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
-
-  /*
-   * Extra right breathing room prevents the CREATOR button
-   * from ever colliding with the UI button.
-   */
-  width: min(390px, calc(100% - 150px));
-  height: 34px;
-
-  transform: translateX(-50%);
-
-  pointer-events: auto;
-}
-
-.speed-button {
-  min-width: 0;
-  height: 34px;
-  min-height: 34px;
-
-  padding: 5px 9px;
-
-  border: 1px solid rgba(220, 230, 255, 0.20);
-  border-radius: 999px;
-
-  background: rgba(12, 17, 30, 0.34);
-
-  color: rgba(255, 255, 255, 0.74);
-
-  opacity: 0.48;
-
-  font-size: 0.67rem;
-  font-weight: 800;
-
-  letter-spacing: 0.08em;
-  line-height: 1;
-
-  cursor: pointer;
-
-  touch-action: manipulation;
-
-  -webkit-tap-highlight-color: transparent;
-
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-
-  transition:
-    opacity 0.18s ease,
-    background 0.18s ease,
-    border-color 0.18s ease,
-    transform 0.12s ease;
-}
-
-.speed-button:hover {
-  opacity: 0.75;
-}
-
-.speed-button:active {
-  transform: scale(0.97);
-}
-
-.speed-button.is-selected {
-  opacity: 0.86;
-}
-
-.speed-button[data-speed="chill"].is-selected {
-  border-color: rgba(139, 255, 171, 0.48);
-  background: rgba(35, 105, 62, 0.42);
-}
-
-.speed-button[data-speed="superman"].is-selected {
-  border-color: rgba(145, 201, 255, 0.50);
-  background: rgba(33, 91, 145, 0.42);
-}
-
-.speed-button[data-speed="creator"].is-selected {
-  border-color: rgba(217, 167, 255, 0.52);
-  background: rgba(92, 51, 133, 0.42);
-}
-
-
-/* =========================================================
-   UI OPTIONS PANEL
-   ========================================================= */
-
-#visual-panel {
-  position: absolute;
-
-  top: max(68px, calc(env(safe-area-inset-top) + 54px));
-  right: max(20px, env(safe-area-inset-right));
-
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-
-  width: 158px;
-
-  padding: 9px;
-
-  border: 1px solid rgba(220, 230, 255, 0.16);
-  border-radius: 14px;
-
-  background: rgba(7, 11, 22, 0.54);
-
-  box-shadow:
-    0 12px 35px rgba(0, 0, 0, 0.16);
-
-  pointer-events: auto;
-
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-#visual-panel[hidden] {
-  display: none;
-}
-
-.visual-panel-title {
-  padding: 3px 6px 7px;
-
-  color: rgba(220, 230, 255, 0.42);
-
-  font-size: 0.56rem;
-  font-weight: 800;
-
-  letter-spacing: 0.15em;
-}
-
-.visual-button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  width: 100%;
-  min-height: 34px;
-
-  padding: 5px 8px;
-
-  border: 1px solid transparent;
-  border-radius: 8px;
-
-  background: transparent;
-
-  color: rgba(255, 255, 255, 0.58);
-
-  font-size: 0.61rem;
-  font-weight: 800;
-
-  letter-spacing: 0.08em;
-
-  cursor: pointer;
-
-  touch-action: manipulation;
-
-  -webkit-tap-highlight-color: transparent;
-
-  transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    border-color 0.18s ease;
-}
-
-.visual-button:hover {
-  background: rgba(255, 255, 255, 0.055);
-  color: rgba(255, 255, 255, 0.82);
-}
-
-.visual-button[aria-pressed="true"] {
-  color: rgba(255, 255, 255, 0.88);
-}
-
-.visual-button[aria-pressed="true"] .toggle-state {
-  color: rgba(145, 201, 255, 0.85);
-}
-
-.toggle-state {
-  color: rgba(255, 255, 255, 0.32);
-  font-size: 0.55rem;
-}
-
-.cinematic-button {
-  margin-top: 4px;
-
-  border-top: 1px solid rgba(220, 230, 255, 0.10);
-  border-radius: 0 0 8px 8px;
-
-  padding-top: 9px;
-}
-
-.cinematic-button[aria-pressed="true"] {
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.94);
-}
-
-.cinematic-button[aria-pressed="true"] .toggle-state {
-  color: rgba(255, 255, 255, 0.82);
-}
-
-
-/* =========================================================
-   UI BUTTON
-   ========================================================= */
-
-#ui-toggle {
-  position: absolute;
-
-  top: max(20px, env(safe-area-inset-top));
-  right: max(20px, env(safe-area-inset-right));
-
-  min-width: 42px;
-  min-height: 34px;
-  height: 34px;
-
-  padding: 6px 9px;
-
-  border: 1px solid rgba(220, 230, 255, 0.22);
-  border-radius: 999px;
-
-  background: rgba(9, 13, 25, 0.32);
-
-  color: rgba(255, 255, 255, 0.62);
-
-  font-size: 0.62rem;
-  font-weight: 800;
-
-  letter-spacing: 0.10em;
-
-  cursor: pointer;
-
-  pointer-events: auto;
-
-  touch-action: manipulation;
-
-  -webkit-tap-highlight-color: transparent;
-
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease;
-}
-
-#ui-toggle:hover,
-#ui-toggle[aria-expanded="true"] {
-  background: rgba(18, 25, 43, 0.58);
-  border-color: rgba(220, 230, 255, 0.36);
-  color: rgba(255, 255, 255, 0.88);
-}
-
-
-/* =========================================================
-   NORTH SETTER
-   ========================================================= */
-
-#north-control {
-  position: absolute;
-
-  top: max(58px, calc(env(safe-area-inset-top) + 54px));
-  right: max(20px, env(safe-area-inset-right));
-
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-
-  pointer-events: none;
-}
-
-#north-button {
-  min-width: 42px;
-  height: 28px;
-
-  padding: 5px 8px;
-
-  border: 1px solid rgba(220, 230, 255, 0.17);
-  border-radius: 999px;
-
-  background: rgba(9, 13, 25, 0.28);
-
-  color: rgba(255, 255, 255, 0.48);
-
-  font-size: 0.52rem;
-  font-weight: 800;
-
-  letter-spacing: 0.10em;
-
-  cursor: pointer;
-
-  pointer-events: auto;
-
-  touch-action: manipulation;
-
-  -webkit-tap-highlight-color: transparent;
-
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-
-  transition:
-    background 0.18s ease,
-    border-color 0.18s ease,
-    color 0.18s ease,
-    transform 0.12s ease;
-}
-
-#north-button:hover {
-  background: rgba(18, 25, 43, 0.50);
-  border-color: rgba(220, 230, 255, 0.30);
-  color: rgba(255, 255, 255, 0.78);
-}
-
-#north-button:active {
-  transform: scale(0.94);
-}
-
-#north-caption {
-  color: rgba(220, 230, 255, 0.28);
-
-  font-size: 0.42rem;
-  font-weight: 700;
-
-  letter-spacing: 0.08em;
-
-  white-space: nowrap;
-
-  text-shadow: 0 1px 4px #000000;
-}
-
-
-/* =========================================================
-   FLIGHT CONTROLS
-   ALWAYS VISIBLE
-   ========================================================= */
-
-#controls {
-  position: absolute;
-
-  right: max(20px, env(safe-area-inset-right));
-  bottom: max(20px, env(safe-area-inset-bottom));
-  left: max(20px, env(safe-area-inset-left));
-
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-
-  pointer-events: none;
-}
-
-.movement-pad {
-  position: relative;
-
-  width: 194px;
-  height: 154px;
-
-  pointer-events: none;
-}
-
-
-/* =========================================================
-   ARROW BUTTONS
-   ========================================================= */
-
-.control-button {
-  display: grid;
-  place-items: center;
-
-  width: 52px;
-  height: 52px;
-
-  min-width: 52px;
-  min-height: 52px;
-
-  padding: 0;
-
-  border: 1px solid rgba(225, 232, 255, 0.20);
-  border-radius: 14px;
-
-  background: rgba(10, 15, 27, 0.30);
-
-  color: rgba(235, 240, 255, 0.66);
-
-  cursor: pointer;
-
-  pointer-events: auto;
-
-  touch-action: none;
-
-  -webkit-user-select: none;
-  user-select: none;
-
-  -webkit-tap-highlight-color: transparent;
-
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-
-  box-shadow:
-    0 5px 18px rgba(0, 0, 0, 0.10);
-
-  transition:
-    background 0.12s ease,
-    border-color 0.12s ease,
-    color 0.12s ease,
-    transform 0.10s ease;
-}
-
-.control-button:hover {
-  border-color: rgba(225, 232, 255, 0.32);
-  background: rgba(20, 27, 45, 0.42);
-  color: rgba(255, 255, 255, 0.84);
-}
-
-.control-button:active,
-.control-button.is-pressed {
-  border-color: rgba(255, 255, 255, 0.38);
-
-  background: rgba(100, 120, 155, 0.40);
-
-  color: rgba(255, 255, 255, 0.96);
-
-  transform: scale(0.93);
-}
-
-
-/* =========================================================
-   ARROW ICONS
-   ========================================================= */
-
-.arrow-icon {
-  position: relative;
-
-  display: block;
-
-  width: 15px;
-  height: 15px;
-
-  border-top: 2px solid currentColor;
-  border-right: 2px solid currentColor;
-}
-
-.arrow-up {
-  transform: rotate(-45deg);
-}
-
-.arrow-down {
-  transform: rotate(135deg);
-}
-
-.arrow-left {
-  transform: rotate(-135deg);
-}
-
-.arrow-right {
-  transform: rotate(45deg);
-}
-
-
-/* Double arrows for vertical movement */
-
-.arrow-double-up,
-.arrow-double-down {
-  width: 16px;
-  height: 16px;
-
-  border: 0;
-
-  transform: none;
-}
-
-.arrow-double-up::before,
-.arrow-double-up::after,
-.arrow-double-down::before,
-.arrow-double-down::after {
-  content: "";
-
-  position: absolute;
-
-  left: 50%;
-
-  width: 10px;
-  height: 10px;
-
-  border-top: 2px solid currentColor;
-  border-right: 2px solid currentColor;
-}
-
-.arrow-double-up::before {
-  top: 2px;
-  transform: translateX(-50%) rotate(-45deg);
-}
-
-.arrow-double-up::after {
-  top: 9px;
-  transform: translateX(-50%) rotate(-45deg);
-}
-
-.arrow-double-down::before {
-  top: 0;
-  transform: translateX(-50%) rotate(135deg);
-}
-
-.arrow-double-down::after {
-  top: 7px;
-  transform: translateX(-50%) rotate(135deg);
-}
-
-
-/* =========================================================
-   D-PAD POSITION
-   ========================================================= */
-
-.movement-pad .control-button {
-  position: absolute;
-}
-
-.forward-button {
-  top: 0;
-  left: 71px;
-}
-
-.left-button {
-  top: 51px;
-  left: 10px;
-}
-
-.back-button {
-  top: 51px;
-  left: 71px;
-}
-
-.right-button {
-  top: 51px;
-  left: 132px;
-}
-
-
-/* =========================================================
-   VERTICAL PAD
-   ========================================================= */
-
-.vertical-pad {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-
-  pointer-events: none;
-}
-
-.vertical-pad .control-button {
-  width: 52px;
-  height: 52px;
-
-  min-width: 52px;
-  min-height: 52px;
-}
-
-
-/* =========================================================
-   CINEMATIC MODE
-   ========================================================= */
-
-#game-ui.cinematic-mode #speed-panel,
-#game-ui.cinematic-mode #energy-hud,
-#game-ui.cinematic-mode #north-control {
-  pointer-events: none;
-}
-
-
-/* =========================================================
-   MOBILE
-   ========================================================= */
-
-@media (max-width: 600px) {
-
-  #energy-hud {
-    width: min(210px, 43vw);
-
-    top: max(60px, calc(env(safe-area-inset-top) + 44px));
-  }
-
-  #speed-panel {
-    top: max(14px, env(safe-area-inset-top));
-
-    width: min(330px, calc(100% - 150px));
-
-    gap: 5px;
-  }
-
-  .speed-button {
-    height: 34px;
-    min-height: 34px;
-
-    padding: 5px 5px;
-
-    font-size: 0.59rem;
-  }
-
-  #visual-panel {
-    top: max(112px, calc(env(safe-area-inset-top) + 98px));
-    right: max(14px, env(safe-area-inset-right));
-  }
-
-  #north-control {
-    top: max(54px, calc(env(safe-area-inset-top) + 48px));
-    right: max(14px, env(safe-area-inset-right));
-  }
-
-  #controls {
-    right: 12px;
-    bottom: max(14px, env(safe-area-inset-bottom));
-    left: 12px;
-  }
-
-  .movement-pad {
-    transform: scale(0.90);
-    transform-origin: bottom left;
-  }
-
-  .vertical-pad {
-    transform: scale(0.90);
-    transform-origin: bottom right;
-  }
-
-  #ui-toggle {
-    top: max(14px, env(safe-area-inset-top));
-    right: max(14px, env(safe-area-inset-right));
-  }
-
-  .planet-label {
-    padding: 4px 7px;
-  }
-
-  .planet-label-name {
-    font-size: 9px;
-  }
-
-  .planet-label-distance {
-    font-size: 7px;
-  }
-}
-
-
-@media (max-width: 430px) {
-
-  #energy-hud {
-    width: min(170px, 42vw);
-
-    top: max(56px, calc(env(safe-area-inset-top) + 42px));
-  }
-
-  #speed-panel {
-    top: max(12px, env(safe-area-inset-top));
-    width: min(280px, calc(100% - 150px));
-  }
-
-  .speed-button {
-    height: 32px;
-    min-height: 32px;
-
-    font-size: 0.54rem;
-  }
-
-  #ui-toggle {
-    height: 32px;
-    min-height: 32px;
-  }
-
-  #north-control {
-    top: max(52px, calc(env(safe-area-inset-top) + 46px));
-  }
-
-  #visual-panel {
-    width: 148px;
-  }
-
-  .movement-pad {
-    transform: scale(0.82);
-  }
-
-  .vertical-pad {
-    transform: scale(0.82);
-  }
-
-  .control-button {
-    width: 50px;
-    height: 50px;
-
-    min-width: 50px;
-    min-height: 50px;
-  }
-}
-
-
-/* =========================================================
-   REDUCED MOTION
-   ========================================================= */
-
-@media (prefers-reduced-motion: reduce) {
-
-  #helper-ui,
-  #energy-hud,
-  .speed-button,
-  .control-button,
-  #ui-toggle,
-  #north-button {
-    transition: none;
-  }
-}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
+  <meta name="theme-color" content="#050711">
+  <title>Solar System — Flying Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <main id="game">
+
+    <div id="loading-screen" class="screen">
+      <p>Loading…</p>
+    </div>
+
+    <section
+      id="start-screen"
+      class="screen"
+      aria-labelledby="game-title"
+      hidden
+    >
+      <div class="start-card">
+        <h1 id="game-title">SOLAR SYSTEM</h1>
+
+        <button
+          id="start-button"
+          type="button"
+        >
+          START FLYING
+        </button>
+      </div>
+    </section>
+
+    <div id="error-screen" class="screen" hidden>
+      <div class="start-card">
+        <h1>Unable to start</h1>
+
+        <p id="error-message">
+          The 3D scene could not be loaded.
+        </p>
+      </div>
+    </div>
+
+    <div
+      id="planet-label-layer"
+      aria-hidden="true"
+    ></div>
+
+    <div id="game-ui" hidden>
+
+      <!-- ===================================================
+           MAIN HUD
+           =================================================== -->
+
+      <div id="helper-ui">
+
+        <!-- ENERGY -->
+        <div
+          id="energy-hud"
+          aria-label="Energy"
+        >
+          <div
+            id="energy-bar"
+            role="progressbar"
+            aria-label="Energy"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="100"
+          >
+            <div id="energy-fill"></div>
+          </div>
+
+          <span id="energy-percent">100%</span>
+
+          <div
+            id="superman-low-energy"
+            aria-live="polite"
+          >
+            Oh no Superman, you need energy!!
+          </div>
+        </div>
+
+
+        <!-- SPEED MODES -->
+        <div
+          id="speed-panel"
+          aria-label="Flying mode"
+        >
+          <button
+            class="speed-button is-selected"
+            type="button"
+            data-speed="chill"
+            aria-pressed="true"
+          >
+            CHILL
+          </button>
+
+          <button
+            class="speed-button"
+            type="button"
+            data-speed="superman"
+            aria-pressed="false"
+          >
+            SUPERMAN
+          </button>
+
+          <button
+            class="speed-button"
+            type="button"
+            data-speed="creator"
+            aria-pressed="false"
+          >
+            CREATOR
+          </button>
+        </div>
+
+
+        <!-- UI OPTIONS -->
+        <div
+          id="visual-panel"
+          aria-label="Visual settings"
+          hidden
+        >
+          <div class="visual-panel-title">
+            DISPLAY
+          </div>
+
+          <button
+            class="visual-button"
+            id="labels-toggle"
+            type="button"
+            aria-pressed="true"
+          >
+            <span>LABEL</span>
+            <span class="toggle-state">ON</span>
+          </button>
+
+          <button
+            class="visual-button"
+            id="orbits-toggle"
+            type="button"
+            aria-pressed="true"
+          >
+            <span>ORBIT</span>
+            <span class="toggle-state">ON</span>
+          </button>
+
+          <button
+            class="visual-button"
+            id="distance-toggle"
+            type="button"
+            aria-pressed="true"
+          >
+            <span>DISTANCE</span>
+            <span class="toggle-state">ON</span>
+          </button>
+
+          <button
+            class="visual-button cinematic-button"
+            id="cinematic-toggle"
+            type="button"
+            aria-pressed="false"
+          >
+            <span>CINEMATIC</span>
+            <span class="toggle-state">OFF</span>
+          </button>
+        </div>
+
+      </div>
+
+
+      <!-- ===================================================
+           UI BUTTON
+           =================================================== -->
+
+      <button
+        id="ui-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="visual-panel"
+      >
+        UI
+      </button>
+
+
+      <!-- ===================================================
+           NORTH SETTER
+           =================================================== -->
+
+      <div id="north-control">
+        <button
+          id="north-button"
+          type="button"
+          aria-label="Reset heading to north"
+        >
+          NORTH
+        </button>
+
+        <span id="north-caption">
+          RESET HEADING
+        </span>
+      </div>
+
+
+      <!-- ===================================================
+           FLIGHT CONTROLS
+           ALWAYS VISIBLE
+           =================================================== -->
+
+      <div
+        id="controls"
+        aria-label="Flight controls"
+      >
+
+        <div
+          class="movement-pad"
+          aria-label="Horizontal movement"
+        >
+
+          <button
+            class="control-button forward-button"
+            type="button"
+            data-control="forward"
+            aria-label="Forward"
+          >
+            <span class="arrow-icon arrow-up"></span>
+          </button>
+
+          <button
+            class="control-button left-button"
+            type="button"
+            data-control="left"
+            aria-label="Left"
+          >
+            <span class="arrow-icon arrow-left"></span>
+          </button>
+
+          <button
+            class="control-button back-button"
+            type="button"
+            data-control="back"
+            aria-label="Back"
+          >
+            <span class="arrow-icon arrow-down"></span>
+          </button>
+
+          <button
+            class="control-button right-button"
+            type="button"
+            data-control="right"
+            aria-label="Right"
+          >
+            <span class="arrow-icon arrow-right"></span>
+          </button>
+
+        </div>
+
+
+        <div
+          class="vertical-pad"
+          aria-label="Vertical movement"
+        >
+
+          <button
+            class="control-button"
+            type="button"
+            data-control="up"
+            aria-label="Up"
+          >
+            <span class="arrow-icon arrow-double-up"></span>
+          </button>
+
+          <button
+            class="control-button"
+            type="button"
+            data-control="down"
+            aria-label="Down"
+          >
+            <span class="arrow-icon arrow-double-down"></span>
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <script
+    type="module"
+    src="app.js"
+  ></script>
+</body>
+</html>
