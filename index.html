@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,7 +8,7 @@
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
   >
   <meta name="theme-color" content="#050711">
-  <title>Solar System — Flying Game</title>
+  <title>Kal-El's Solar System Simulation</title>
   <link rel="stylesheet" href="style.css">
 </head>
 
@@ -18,6 +19,11 @@
       <p>Loading…</p>
     </div>
 
+
+    <!-- ===================================================
+         HOME SCREEN
+         =================================================== -->
+
     <section
       id="start-screen"
       class="screen"
@@ -25,41 +31,62 @@
       hidden
     >
       <div class="start-card">
-        <h1 id="game-title">SOLAR SYSTEM</h1>
+
+        <h1 id="game-title">
+          Kal-El's Solar System Simulation
+        </h1>
 
         <button
           id="start-button"
           type="button"
         >
-          START FLYING
+          START SIMULATION
         </button>
+
       </div>
     </section>
 
+
+    <!-- ===================================================
+         ERROR SCREEN
+         =================================================== -->
+
     <div id="error-screen" class="screen" hidden>
       <div class="start-card">
+
         <h1>Unable to start</h1>
 
         <p id="error-message">
           The 3D scene could not be loaded.
         </p>
+
       </div>
     </div>
+
+
+    <!-- ===================================================
+         PLANET LABELS
+         =================================================== -->
 
     <div
       id="planet-label-layer"
       aria-hidden="true"
     ></div>
 
-    <div id="game-ui" hidden>
 
-      <!-- ===================================================
-           MAIN HUD
-           =================================================== -->
+    <!-- ===================================================
+         GAME UI
+         =================================================== -->
+
+    <div id="game-ui" hidden>
 
       <div id="helper-ui">
 
-        <!-- ENERGY -->
+
+        <!-- =================================================
+             ENERGY
+             ================================================= -->
+
         <div
           id="energy-hud"
           aria-label="Energy"
@@ -86,11 +113,15 @@
         </div>
 
 
-        <!-- SPEED MODES -->
+        <!-- =================================================
+             MAIN MODE BAR
+             ================================================= -->
+
         <div
           id="speed-panel"
-          aria-label="Flying mode"
+          aria-label="Simulation mode"
         >
+
           <button
             class="speed-button is-selected"
             type="button"
@@ -115,23 +146,88 @@
             data-speed="creator"
             aria-pressed="false"
           >
-            CREATOR
+            FREE
           </button>
+
+          <button
+            class="speed-button modes-button"
+            id="ui-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="visual-panel"
+          >
+            MODES
+          </button>
+
         </div>
 
 
-        <!-- UI OPTIONS -->
+        <!-- =================================================
+             MODES PANEL
+             ================================================= -->
+
         <div
           id="visual-panel"
-          aria-label="Visual settings"
+          aria-label="Simulation modes"
           hidden
         >
+
           <div class="visual-panel-title">
-            DISPLAY
+            MODES
           </div>
 
+
           <button
-            class="visual-button"
+            class="visual-button mode-choice-button"
+            id="cinematic-mode-button"
+            type="button"
+            aria-pressed="false"
+          >
+            <span>CINEMATIC</span>
+          </button>
+
+
+          <button
+            class="visual-button mode-choice-button"
+            id="nerd-mode-button"
+            type="button"
+            aria-pressed="false"
+          >
+            <span>NERD</span>
+          </button>
+
+
+          <button
+            class="visual-button mode-choice-button"
+            id="moon-calendar-button"
+            type="button"
+            aria-pressed="false"
+          >
+            <span>MOON CALENDAR</span>
+          </button>
+
+
+          <button
+            class="visual-button mode-choice-button"
+            id="ui-mode-button"
+            type="button"
+            aria-pressed="false"
+          >
+            <span>UI</span>
+          </button>
+
+
+          <!--
+            Existing display controls are preserved for the
+            current app.js. They remain available underneath
+            the new UI architecture and will be reorganized
+            properly in a later phase.
+          -->
+
+          <div class="visual-panel-divider"></div>
+
+          <button
+            class="visual-button display-setting-button"
             id="labels-toggle"
             type="button"
             aria-pressed="true"
@@ -140,8 +236,9 @@
             <span class="toggle-state">ON</span>
           </button>
 
+
           <button
-            class="visual-button"
+            class="visual-button display-setting-button"
             id="orbits-toggle"
             type="button"
             aria-pressed="true"
@@ -150,8 +247,9 @@
             <span class="toggle-state">ON</span>
           </button>
 
+
           <button
-            class="visual-button"
+            class="visual-button display-setting-button"
             id="distance-toggle"
             type="button"
             aria-pressed="true"
@@ -159,6 +257,7 @@
             <span>DISTANCE</span>
             <span class="toggle-state">ON</span>
           </button>
+
 
           <button
             class="visual-button cinematic-button"
@@ -169,30 +268,26 @@
             <span>CINEMATIC</span>
             <span class="toggle-state">OFF</span>
           </button>
+
         </div>
 
       </div>
 
 
       <!-- ===================================================
-           UI BUTTON
+           LEGACY NORTH HOOK
+           ===================================================
+
+           Kept hidden so the existing app.js remains safe
+           during this visual-only redesign phase.
+           It is not visible or usable.
            =================================================== -->
 
-      <button
-        id="ui-toggle"
-        type="button"
-        aria-expanded="false"
-        aria-controls="visual-panel"
+      <div
+        id="north-control"
+        aria-hidden="true"
+        hidden
       >
-        UI
-      </button>
-
-
-      <!-- ===================================================
-           NORTH SETTER
-           =================================================== -->
-
-      <div id="north-control">
         <button
           id="north-button"
           type="button"
@@ -209,7 +304,7 @@
 
       <!-- ===================================================
            FLIGHT CONTROLS
-           ALWAYS VISIBLE
+           ALWAYS VISIBLE FOR NOW
            =================================================== -->
 
       <div
@@ -231,6 +326,7 @@
             <span class="arrow-icon arrow-up"></span>
           </button>
 
+
           <button
             class="control-button left-button"
             type="button"
@@ -240,6 +336,7 @@
             <span class="arrow-icon arrow-left"></span>
           </button>
 
+
           <button
             class="control-button back-button"
             type="button"
@@ -248,6 +345,7 @@
           >
             <span class="arrow-icon arrow-down"></span>
           </button>
+
 
           <button
             class="control-button right-button"
@@ -275,6 +373,7 @@
             <span class="arrow-icon arrow-double-up"></span>
           </button>
 
+
           <button
             class="control-button"
             type="button"
@@ -292,9 +391,11 @@
 
   </main>
 
+
   <script
     type="module"
     src="app.js"
   ></script>
 </body>
 </html>
+```
