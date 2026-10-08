@@ -1,235 +1,1046 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
+:root {
+  color-scheme: dark;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #050711;
+  color: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #050711;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+button {
+  font: inherit;
+}
+
+#game {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  overflow: hidden;
+  background: #050711;
+  touch-action: none;
+}
+
+#game canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+
+/* =========================================================
+   SCREENS
+   ========================================================= */
+
+.screen {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 7, 17, 0.88);
+  text-align: center;
+}
+
+.screen[hidden],
+#game-ui[hidden] {
+  display: none;
+}
+
+.start-card {
+  width: min(100%, 500px);
+  padding: 36px 24px;
+  border: 1px solid rgba(170, 190, 255, 0.25);
+  border-radius: 20px;
+  background: rgba(15, 20, 42, 0.94);
+  box-shadow: 0 16px 60px rgba(0, 0, 0, 0.35);
+}
+
+.start-card h1 {
+  margin: 0 0 26px;
+  font-size: clamp(2rem, 8vw, 3.4rem);
+  letter-spacing: 0.12em;
+}
+
+.start-card > p {
+  margin: 0 0 20px;
+  color: #d4d9ee;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+#start-button {
+  min-height: 58px;
+  padding: 0 30px;
+  border: 0;
+  border-radius: 12px;
+  background: #5b8cff;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  touch-action: manipulation;
+}
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  />
+#start-button:hover {
+  background: #78a0ff;
+}
+
+#start-button:focus-visible,
+.control-button:focus-visible,
+.speed-button:focus-visible,
+.visual-button:focus-visible,
+#ui-toggle:focus-visible,
+#north-button:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: 3px;
+}
+
+
+/* =========================================================
+   PLANET LABELS
+   ========================================================= */
+
+#planet-label-layer {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
 
-  <title>Solar System Flight</title>
+.planet-label {
+  position: absolute;
+  left: 0;
+  top: 0;
 
-  <link
-    rel="stylesheet"
-    href="./style.css"
-  />
-</head>
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
 
-<body>
+  padding: 5px 9px;
 
-  <div id="loading-screen">
-    <div class="loading-title">
-      SOLAR SYSTEM
-    </div>
+  border: 1px solid rgba(210, 225, 255, 0.22);
+  border-radius: 999px;
 
-    <div class="loading-subtitle">
-      Loading the universe...
-    </div>
-  </div>
+  background: rgba(5, 8, 20, 0.52);
 
+  color: #ffffff;
 
-  <div id="start-screen" hidden>
-    <div class="start-card">
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  line-height: 1;
 
-      <div class="start-title">
-        SOLAR SYSTEM
-      </div>
+  text-shadow: 0 1px 5px #000000;
 
-      <div class="start-subtitle">
-        Fly through the real-time Solar System
-      </div>
+  white-space: nowrap;
 
-      <button id="start-button">
-        ENTER SYSTEM
-      </button>
+  transform: translate(-50%, -125%);
 
-    </div>
-  </div>
+  will-change: transform, left, top, opacity;
 
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
 
-  <div id="error-screen" hidden>
-    <div class="error-card">
+.planet-label-name {
+  font-size: 10px;
+  font-weight: 900;
+}
 
-      <div class="error-title">
-        SYSTEM ERROR
-      </div>
+.planet-label-distance {
+  color: rgba(220, 230, 255, 0.72);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
 
-      <div id="error-message"></div>
+#planet-label-layer.creator-enabled .planet-label {
+  pointer-events: auto;
+  cursor: pointer;
 
-    </div>
-  </div>
+  border-color: rgba(205, 158, 255, 0.62);
+  background: rgba(38, 18, 66, 0.68);
+}
 
+#planet-label-layer.cinematic-hidden {
+  visibility: hidden;
+}
 
-  <div id="game">
 
-    <div id="planet-label-layer"></div>
+/* =========================================================
+   GAME UI
+   ========================================================= */
 
+#game-ui {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  pointer-events: none;
+}
 
-    <div id="game-ui">
+#helper-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 
-      <div id="top-ui">
+  transition:
+    opacity 0.22s ease,
+    visibility 0.22s ease;
+}
 
-        <button
-          id="ui-toggle"
-          class="ui-button"
-          type="button"
-        >
-          MENU
-        </button>
+#game-ui.cinematic-mode #helper-ui {
+  opacity: 0;
+  visibility: hidden;
+}
 
-        <button
-          id="north-button"
-          class="ui-button"
-          type="button"
-        >
-          NORTH
-        </button>
+#game-ui.cinematic-mode #planet-label-layer {
+  visibility: hidden;
+}
 
-      </div>
 
+/* =========================================================
+   ENERGY
+   ========================================================= */
 
-      <div id="ui-menu">
+#energy-hud {
+  position: absolute;
 
-        <button
-          id="labels-toggle"
-          class="menu-button"
-          type="button"
-        >
-          Labels
-        </button>
+  top: max(66px, calc(env(safe-area-inset-top) + 46px));
+  left: max(20px, env(safe-area-inset-left));
 
-        <button
-          id="orbits-toggle"
-          class="menu-button"
-          type="button"
-        >
-          Orbits
-        </button>
+  display: flex;
+  align-items: center;
+  gap: 9px;
 
-        <button
-          id="distance-toggle"
-          class="menu-button"
-          type="button"
-        >
-          Distance
-        </button>
+  width: min(250px, 42vw);
 
-        <button
-          id="cinematic-toggle"
-          class="menu-button"
-          type="button"
-        >
-          Cinematic
-        </button>
+  pointer-events: none;
 
-      </div>
+  opacity: 0;
 
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+}
 
-      <div id="speed-controls">
+#game-ui.superman-mode #energy-hud {
+  opacity: 0.62;
+}
 
-        <button
-          class="speed-button"
-          data-speed="chill"
-          type="button"
-        >
-          CHILL
-        </button>
+#energy-bar {
+  flex: 1;
 
-        <button
-          class="speed-button"
-          data-speed="superman"
-          type="button"
-        >
-          SUPERMAN
-        </button>
+  height: 5px;
 
-        <button
-          class="speed-button"
-          data-speed="creator"
-          type="button"
-        >
-          CREATOR
-        </button>
+  overflow: hidden;
 
-      </div>
+  border: 1px solid rgba(190, 220, 200, 0.22);
+  border-radius: 999px;
 
+  background: rgba(8, 12, 20, 0.38);
 
-      <div id="energy-container">
+  box-shadow:
+    0 0 12px rgba(60, 220, 110, 0.08);
+}
 
-        <div id="energy-label">
-          ENERGY
-        </div>
+#energy-fill {
+  width: 100%;
+  height: 100%;
 
-        <div id="energy-bar">
-          <div id="energy-fill"></div>
-        </div>
+  border-radius: inherit;
 
-        <div id="energy-percent">
-          100%
-        </div>
+  background: #65e68a;
 
-      </div>
+  transition:
+    width 0.12s linear,
+    background-color 0.2s ease;
+}
 
+#energy-percent {
+  min-width: 32px;
 
-      <!-- =================================================
-           FLIGHT CONTROLS
-           ================================================= -->
+  color: rgba(235, 255, 240, 0.8);
 
-      <div id="controls">
+  font-size: 0.67rem;
+  font-weight: 800;
 
-        <!-- ANALOG FLIGHT JOYSTICK -->
+  text-align: right;
 
-        <div
-          id="movement-joystick"
-          class="movement-joystick"
-          aria-label="Flight joystick"
-        >
+  text-shadow: 0 1px 5px #000000;
+}
 
-          <div class="joystick-base">
+#superman-low-energy {
+  position: absolute;
 
-            <div
-              id="joystick-thumb"
-              class="joystick-thumb"
-            ></div>
+  top: calc(100% + 6px);
+  left: 0;
 
-          </div>
+  width: max-content;
+  max-width: min(260px, 70vw);
 
-        </div>
+  color: rgba(255, 225, 225, 0.76);
 
+  font-size: 0.58rem;
+  font-weight: 700;
 
-        <!-- VERTICAL MOVEMENT -->
+  letter-spacing: 0.015em;
+  line-height: 1.2;
 
-        <div class="vertical-pad">
+  text-shadow: 0 1px 5px #000000;
 
-          <button
-            class="control-button vertical-button up-button"
-            data-control="up"
-            type="button"
-            aria-label="Move up"
-          >
-            <span class="arrow-icon arrow-up"></span>
-          </button>
+  opacity: 0;
+  visibility: hidden;
 
-          <button
-            class="control-button vertical-button down-button"
-            data-control="down"
-            type="button"
-            aria-label="Move down"
-          >
-            <span class="arrow-icon arrow-down"></span>
-          </button>
+  transition:
+    opacity 0.18s ease,
+    visibility 0.18s ease;
+}
 
-        </div>
+#game-ui.superman-low-energy #superman-low-energy {
+  opacity: 1;
+  visibility: visible;
+}
 
-      </div>
 
-    </div>
+/* =========================================================
+   SPEED PANEL
+   ========================================================= */
 
-  </div>
+#speed-panel {
+  position: absolute;
 
+  top: max(20px, env(safe-area-inset-top));
+  left: 50%;
 
-  <script type="module" src="./app.js"></script>
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
 
-</body>
-</html>
+  /*
+   * Extra right breathing room prevents the CREATOR button
+   * from ever colliding with the UI button.
+   */
+  width: min(390px, calc(100% - 150px));
+  height: 34px;
+
+  transform: translateX(-50%);
+
+  pointer-events: auto;
+}
+
+.speed-button {
+  min-width: 0;
+  height: 34px;
+  min-height: 34px;
+
+  padding: 5px 9px;
+
+  border: 1px solid rgba(220, 230, 255, 0.20);
+  border-radius: 999px;
+
+  background: rgba(12, 17, 30, 0.34);
+
+  color: rgba(255, 255, 255, 0.74);
+
+  opacity: 0.48;
+
+  font-size: 0.67rem;
+  font-weight: 800;
+
+  letter-spacing: 0.08em;
+  line-height: 1;
+
+  cursor: pointer;
+
+  touch-action: manipulation;
+
+  -webkit-tap-highlight-color: transparent;
+
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  transition:
+    opacity 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.12s ease;
+}
+
+.speed-button:hover {
+  opacity: 0.75;
+}
+
+.speed-button:active {
+  transform: scale(0.97);
+}
+
+.speed-button.is-selected {
+  opacity: 0.86;
+}
+
+.speed-button[data-speed="chill"].is-selected {
+  border-color: rgba(139, 255, 171, 0.48);
+  background: rgba(35, 105, 62, 0.42);
+}
+
+.speed-button[data-speed="superman"].is-selected {
+  border-color: rgba(145, 201, 255, 0.50);
+  background: rgba(33, 91, 145, 0.42);
+}
+
+.speed-button[data-speed="creator"].is-selected {
+  border-color: rgba(217, 167, 255, 0.52);
+  background: rgba(92, 51, 133, 0.42);
+}
+
+
+/* =========================================================
+   UI OPTIONS PANEL
+   ========================================================= */
+
+#visual-panel {
+  position: absolute;
+
+  top: max(68px, calc(env(safe-area-inset-top) + 54px));
+  right: max(20px, env(safe-area-inset-right));
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  width: 158px;
+
+  padding: 9px;
+
+  border: 1px solid rgba(220, 230, 255, 0.16);
+  border-radius: 14px;
+
+  background: rgba(7, 11, 22, 0.54);
+
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.16);
+
+  pointer-events: auto;
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+#visual-panel[hidden] {
+  display: none;
+}
+
+.visual-panel-title {
+  padding: 3px 6px 7px;
+
+  color: rgba(220, 230, 255, 0.42);
+
+  font-size: 0.56rem;
+  font-weight: 800;
+
+  letter-spacing: 0.15em;
+}
+
+.visual-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  min-height: 34px;
+
+  padding: 5px 8px;
+
+  border: 1px solid transparent;
+  border-radius: 8px;
+
+  background: transparent;
+
+  color: rgba(255, 255, 255, 0.58);
+
+  font-size: 0.61rem;
+  font-weight: 800;
+
+  letter-spacing: 0.08em;
+
+  cursor: pointer;
+
+  touch-action: manipulation;
+
+  -webkit-tap-highlight-color: transparent;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.visual-button:hover {
+  background: rgba(255, 255, 255, 0.055);
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.visual-button[aria-pressed="true"] {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.visual-button[aria-pressed="true"] .toggle-state {
+  color: rgba(145, 201, 255, 0.85);
+}
+
+.toggle-state {
+  color: rgba(255, 255, 255, 0.32);
+  font-size: 0.55rem;
+}
+
+.cinematic-button {
+  margin-top: 4px;
+
+  border-top: 1px solid rgba(220, 230, 255, 0.10);
+  border-radius: 0 0 8px 8px;
+
+  padding-top: 9px;
+}
+
+.cinematic-button[aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.cinematic-button[aria-pressed="true"] .toggle-state {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+
+/* =========================================================
+   UI BUTTON
+   ========================================================= */
+
+#ui-toggle {
+  position: absolute;
+
+  top: max(20px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
+
+  min-width: 42px;
+  min-height: 34px;
+  height: 34px;
+
+  padding: 6px 9px;
+
+  border: 1px solid rgba(220, 230, 255, 0.22);
+  border-radius: 999px;
+
+  background: rgba(9, 13, 25, 0.32);
+
+  color: rgba(255, 255, 255, 0.62);
+
+  font-size: 0.62rem;
+  font-weight: 800;
+
+  letter-spacing: 0.10em;
+
+  cursor: pointer;
+
+  pointer-events: auto;
+
+  touch-action: manipulation;
+
+  -webkit-tap-highlight-color: transparent;
+
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+#ui-toggle:hover,
+#ui-toggle[aria-expanded="true"] {
+  background: rgba(18, 25, 43, 0.58);
+  border-color: rgba(220, 230, 255, 0.36);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+
+/* =========================================================
+   NORTH SETTER
+   ========================================================= */
+
+#north-control {
+  position: absolute;
+
+  top: max(58px, calc(env(safe-area-inset-top) + 54px));
+  right: max(20px, env(safe-area-inset-right));
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+
+  pointer-events: none;
+}
+
+#north-button {
+  min-width: 42px;
+  height: 28px;
+
+  padding: 5px 8px;
+
+  border: 1px solid rgba(220, 230, 255, 0.17);
+  border-radius: 999px;
+
+  background: rgba(9, 13, 25, 0.28);
+
+  color: rgba(255, 255, 255, 0.48);
+
+  font-size: 0.52rem;
+  font-weight: 800;
+
+  letter-spacing: 0.10em;
+
+  cursor: pointer;
+
+  pointer-events: auto;
+
+  touch-action: manipulation;
+
+  -webkit-tap-highlight-color: transparent;
+
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.12s ease;
+}
+
+#north-button:hover {
+  background: rgba(18, 25, 43, 0.50);
+  border-color: rgba(220, 230, 255, 0.30);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+#north-button:active {
+  transform: scale(0.94);
+}
+
+#north-caption {
+  color: rgba(220, 230, 255, 0.28);
+
+  font-size: 0.42rem;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+
+  white-space: nowrap;
+
+  text-shadow: 0 1px 4px #000000;
+}
+
+
+/* =========================================================
+   FLIGHT CONTROLS
+   ALWAYS VISIBLE
+   ========================================================= */
+
+#controls {
+  position: absolute;
+
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  left: max(20px, env(safe-area-inset-left));
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  pointer-events: none;
+}
+
+.movement-pad {
+  position: relative;
+
+  width: 194px;
+  height: 154px;
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   ARROW BUTTONS
+   ========================================================= */
+
+.control-button {
+  display: grid;
+  place-items: center;
+
+  width: 52px;
+  height: 52px;
+
+  min-width: 52px;
+  min-height: 52px;
+
+  padding: 0;
+
+  border: 1px solid rgba(225, 232, 255, 0.20);
+  border-radius: 14px;
+
+  background: rgba(10, 15, 27, 0.30);
+
+  color: rgba(235, 240, 255, 0.66);
+
+  cursor: pointer;
+
+  pointer-events: auto;
+
+  touch-action: none;
+
+  -webkit-user-select: none;
+  user-select: none;
+
+  -webkit-tap-highlight-color: transparent;
+
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+
+  box-shadow:
+    0 5px 18px rgba(0, 0, 0, 0.10);
+
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.10s ease;
+}
+
+.control-button:hover {
+  border-color: rgba(225, 232, 255, 0.32);
+  background: rgba(20, 27, 45, 0.42);
+  color: rgba(255, 255, 255, 0.84);
+}
+
+.control-button:active,
+.control-button.is-pressed {
+  border-color: rgba(255, 255, 255, 0.38);
+
+  background: rgba(100, 120, 155, 0.40);
+
+  color: rgba(255, 255, 255, 0.96);
+
+  transform: scale(0.93);
+}
+
+
+/* =========================================================
+   ARROW ICONS
+   ========================================================= */
+
+.arrow-icon {
+  position: relative;
+
+  display: block;
+
+  width: 15px;
+  height: 15px;
+
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.arrow-up {
+  transform: rotate(-45deg);
+}
+
+.arrow-down {
+  transform: rotate(135deg);
+}
+
+.arrow-left {
+  transform: rotate(-135deg);
+}
+
+.arrow-right {
+  transform: rotate(45deg);
+}
+
+
+/* Double arrows for vertical movement */
+
+.arrow-double-up,
+.arrow-double-down {
+  width: 16px;
+  height: 16px;
+
+  border: 0;
+
+  transform: none;
+}
+
+.arrow-double-up::before,
+.arrow-double-up::after,
+.arrow-double-down::before,
+.arrow-double-down::after {
+  content: "";
+
+  position: absolute;
+
+  left: 50%;
+
+  width: 10px;
+  height: 10px;
+
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.arrow-double-up::before {
+  top: 2px;
+  transform: translateX(-50%) rotate(-45deg);
+}
+
+.arrow-double-up::after {
+  top: 9px;
+  transform: translateX(-50%) rotate(-45deg);
+}
+
+.arrow-double-down::before {
+  top: 0;
+  transform: translateX(-50%) rotate(135deg);
+}
+
+.arrow-double-down::after {
+  top: 7px;
+  transform: translateX(-50%) rotate(135deg);
+}
+
+
+/* =========================================================
+   D-PAD POSITION
+   ========================================================= */
+
+.movement-pad .control-button {
+  position: absolute;
+}
+
+.forward-button {
+  top: 0;
+  left: 71px;
+}
+
+.left-button {
+  top: 51px;
+  left: 10px;
+}
+
+.back-button {
+  top: 51px;
+  left: 71px;
+}
+
+.right-button {
+  top: 51px;
+  left: 132px;
+}
+
+
+/* =========================================================
+   VERTICAL PAD
+   ========================================================= */
+
+.vertical-pad {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+
+  pointer-events: none;
+}
+
+.vertical-pad .control-button {
+  width: 52px;
+  height: 52px;
+
+  min-width: 52px;
+  min-height: 52px;
+}
+
+
+/* =========================================================
+   CINEMATIC MODE
+   ========================================================= */
+
+#game-ui.cinematic-mode #speed-panel,
+#game-ui.cinematic-mode #energy-hud,
+#game-ui.cinematic-mode #north-control {
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+
+  #energy-hud {
+    width: min(210px, 43vw);
+
+    top: max(60px, calc(env(safe-area-inset-top) + 44px));
+  }
+
+  #speed-panel {
+    top: max(14px, env(safe-area-inset-top));
+
+    width: min(330px, calc(100% - 150px));
+
+    gap: 5px;
+  }
+
+  .speed-button {
+    height: 34px;
+    min-height: 34px;
+
+    padding: 5px 5px;
+
+    font-size: 0.59rem;
+  }
+
+  #visual-panel {
+    top: max(112px, calc(env(safe-area-inset-top) + 98px));
+    right: max(14px, env(safe-area-inset-right));
+  }
+
+  #north-control {
+    top: max(54px, calc(env(safe-area-inset-top) + 48px));
+    right: max(14px, env(safe-area-inset-right));
+  }
+
+  #controls {
+    right: 12px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: 12px;
+  }
+
+  .movement-pad {
+    transform: scale(0.90);
+    transform-origin: bottom left;
+  }
+
+  .vertical-pad {
+    transform: scale(0.90);
+    transform-origin: bottom right;
+  }
+
+  #ui-toggle {
+    top: max(14px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+  }
+
+  .planet-label {
+    padding: 4px 7px;
+  }
+
+  .planet-label-name {
+    font-size: 9px;
+  }
+
+  .planet-label-distance {
+    font-size: 7px;
+  }
+}
+
+
+@media (max-width: 430px) {
+
+  #energy-hud {
+    width: min(170px, 42vw);
+
+    top: max(56px, calc(env(safe-area-inset-top) + 42px));
+  }
+
+  #speed-panel {
+    top: max(12px, env(safe-area-inset-top));
+    width: min(280px, calc(100% - 150px));
+  }
+
+  .speed-button {
+    height: 32px;
+    min-height: 32px;
+
+    font-size: 0.54rem;
+  }
+
+  #ui-toggle {
+    height: 32px;
+    min-height: 32px;
+  }
+
+  #north-control {
+    top: max(52px, calc(env(safe-area-inset-top) + 46px));
+  }
+
+  #visual-panel {
+    width: 148px;
+  }
+
+  .movement-pad {
+    transform: scale(0.82);
+  }
+
+  .vertical-pad {
+    transform: scale(0.82);
+  }
+
+  .control-button {
+    width: 50px;
+    height: 50px;
+
+    min-width: 50px;
+    min-height: 50px;
+  }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  #helper-ui,
+  #energy-hud,
+  .speed-button,
+  .control-button,
+  #ui-toggle,
+  #north-button {
+    transition: none;
+  }
+}
