@@ -345,6 +345,24 @@ const raycaster =
 
 const sunOccluders = [];
 
+const collisionStart =
+  new THREE.Vector3();
+
+const collisionDelta =
+  new THREE.Vector3();
+
+const collisionCenter =
+  new THREE.Vector3();
+
+const collisionClosest =
+  new THREE.Vector3();
+
+const collisionPush =
+  new THREE.Vector3();
+
+const COLLISION_MARGIN =
+  1.5;
+
 
 /* =========================================================
    TEXTURE SYSTEM
@@ -535,6 +553,490 @@ const MOON_ORBIT_RADIUS =
 
 const MOON_ORBIT_PERIOD_DAYS =
   27.322;
+
+/*
+ * Astronomical clock / date state.
+ * The browser's Date object is the host device clock.  We use UTC
+ * internally so the same instant produces the same Solar System state
+ * on every device, regardless of local timezone.
+ */
+const J2000_EPOCH_MS =
+  Date.UTC(2000, 0, 1, 12, 0, 0);
+
+const DAY_MS =
+  86_400_000;
+
+const JULIAN_CENTURY_DAYS =
+  36_525;
+
+const MOON_EARTH_RADIUS_RATIO =
+  60.2666;
+
+const MOON_ECCENTRICITY =
+  0.054900;
+
+const MOON_INCLINATION_DEGREES =
+  5.1454;
+
+const MOON_NODE_AT_J2000_DEGREES =
+  125.1228;
+
+const MOON_NODE_RATE_DEGREES_PER_DAY =
+  -0.0529538083;
+
+const MOON_PERIGEE_AT_J2000_DEGREES =
+  318.0634;
+
+const MOON_PERIGEE_RATE_DEGREES_PER_DAY =
+  0.1643573223;
+
+const MOON_MEAN_ANOMALY_AT_J2000_DEGREES =
+  115.3654;
+
+const MOON_MEAN_MOTION_DEGREES_PER_DAY =
+  13.0649929509;
+
+/*
+ * Meeus new-moon model.
+ * This gives us a real astronomical phase timestamp rather than
+ * guessing a 29.5-day cycle from a hard-coded game angle.
+ */
+const NEW_MOON_BASE_JD =
+  2451550.09765;
+
+const SYNODIC_MONTH_DAYS =
+  29.530588853;
+
+function julianDateFromDate(date) {
+  return (
+    2440587.5 +
+    date.getTime() / DAY_MS
+  );
+}
+
+function dateFromJulianDate(julianDate) {
+  return new Date(
+    (
+      julianDate -
+      2440587.5
+    ) * DAY_MS
+  );
+}
+
+function getMeeusNewMoonJulianDate(k) {
+  const T =
+    k / 1236.85;
+
+  const T2 = T * T;
+  const T3 = T2 * T;
+  const T4 = T3 * T;
+
+  const E =
+    1 -
+    0.002516 * T -
+    0.0000074 * T2;
+
+  const M =
+    THREE.MathUtils.degToRad(
+      2.5534 +
+      29.10535670 * k -
+      0.0000014 * T2 -
+      0.00000011 * T3
+    );
+
+  const MPrime =
+    THREE.MathUtils.degToRad(
+      201.5643 +
+      385.81693528 * k +
+      0.0107582 * T2 +
+      0.00001238 * T3 -
+      0.000000058 * T4
+    );
+
+  const F =
+    THREE.MathUtils.degToRad(
+      160.7108 +
+      390.67050284 * k -
+      0.0016118 * T2 -
+      0.00000227 * T3 +
+      0.000000011 * T4
+    );
+
+  const Omega =
+    THREE.MathUtils.degToRad(
+      124.7746 -
+      1.56375580 * k +
+      0.0020672 * T2 +
+      0.00000215 * T3
+    );
+
+  const correction =
+    -0.40720 * Math.sin(MPrime) +
+    0.17241 * E * Math.sin(M) +
+    0.01608 * Math.sin(2 * MPrime) +
+    0.01039 * Math.sin(2 * F) +
+    0.00739 * E * Math.sin(MPrime - M) -
+    0.00514 * E * Math.sin(MPrime + M) +
+    0.00208 * E * E * Math.sin(2 * M) -
+    0.00111 * Math.sin(MPrime - 2 * F) -
+    0.00057 * Math.sin(MPrime + 2 * F) +
+    0.00056 * E * Math.sin(2 * MPrime + M) -
+    0.00042 * Math.sin(3 * MPrime) -
+    0.00042 * E * Math.sin(M + 2 * F) -
+    0.00038 * E * Math.sin(M - 2 * F) +
+    0.00024 * E * Math.sin(2 * MPrime - M) -
+    0.00017 * Math.sin(Omega) -
+    0.00007 * Math.sin(MPrime + 2 * M) +
+    0.00004 * Math.sin(2 * MPrime - 2 * F) +
+    0.00004 * Math.sin(3 * M) +
+    0.00003 * Math.sin(MPrime + M - 2 * F) +
+    0.00003 * Math.sin(2 * MPrime + 2 * F) -
+    0.00003 * Math.sin(MPrime + M + 2 * F) +
+    0.00003 * Math.sin(MPrime - M + 2 * F) -
+    0.00002 * Math.sin(MPrime - M - 2 * F) -
+    0.00002 * Math.sin(3 * MPrime + M) +
+    0.00002 * Math.sin(4 * MPrime);
+
+  return (
+    NEW_MOON_BASE_JD +
+    SYNODIC_MONTH_DAYS * k +
+    0.0001337 * T2 -
+    0.000000150 * T3 +
+    0.00000000073 * T4 +
+    correction
+  );
+}
+
+function getLunarPhaseState(date) {
+  const julianDate =
+    julianDateFromDate(date);
+
+  const approximateK =
+    Math.floor(
+      (
+        julianDate -
+        NEW_MOON_BASE_JD
+      ) /
+      SYNODIC_MONTH_DAYS
+    );
+
+  let previousK =
+    approximateK;
+
+  let nextK =
+    approximateK + 1;
+
+  let previousNewMoonJD =
+    getMeeusNewMoonJulianDate(
+      previousK
+    );
+
+  let nextNewMoonJD =
+    getMeeusNewMoonJulianDate(
+      nextK
+    );
+
+  while (
+    previousNewMoonJD >
+    julianDate
+  ) {
+    previousK -= 1;
+    previousNewMoonJD =
+      getMeeusNewMoonJulianDate(
+        previousK
+      );
+  }
+
+  while (
+    nextNewMoonJD <=
+    julianDate
+  ) {
+    nextK += 1;
+    nextNewMoonJD =
+      getMeeusNewMoonJulianDate(
+        nextK
+      );
+  }
+
+  const cycleFraction =
+    THREE.MathUtils.clamp(
+      (
+        julianDate -
+        previousNewMoonJD
+      ) /
+      (
+        nextNewMoonJD -
+        previousNewMoonJD
+      ),
+      0,
+      1
+    );
+
+  const phaseAngle =
+    cycleFraction *
+    Math.PI *
+    2;
+
+  return {
+    phaseAngle,
+    illuminationFraction:
+      (1 - Math.cos(phaseAngle)) *
+      0.5,
+    previousNewMoon:
+      dateFromJulianDate(
+        previousNewMoonJD
+      ),
+    nextNewMoon:
+      dateFromJulianDate(
+        nextNewMoonJD
+      )
+  };
+}
+
+let astronomicalDate =
+  new Date();
+
+let moonMesh = null;
+
+let moonOrbitalPosition =
+  new THREE.Vector3();
+
+let moonSunDirection =
+  new THREE.Vector3();
+
+let moonPhaseAngle =
+  0;
+
+let moonIlluminationFraction =
+  1;
+
+function getAstronomicalDays(date = new Date()) {
+  return (
+    date.getTime() -
+    J2000_EPOCH_MS
+  ) / DAY_MS;
+}
+
+function normalizeRadians(angle) {
+  const fullTurn = Math.PI * 2;
+
+  angle %= fullTurn;
+
+  if (angle < 0) {
+    angle += fullTurn;
+  }
+
+  return angle;
+}
+
+function normalizeDegrees(angle) {
+  angle %= 360;
+
+  if (angle < 0) {
+    angle += 360;
+  }
+
+  return angle;
+}
+
+function getPlanetMeanAnomalyAtDate(
+  data,
+  date
+) {
+  const days =
+    getAstronomicalDays(date);
+
+  const startingMeanAnomaly =
+    THREE.MathUtils.degToRad(
+      data.startMeanAnomalyDegrees
+    );
+
+  const meanMotionPerDay =
+    Math.PI * 2 /
+    data.orbitalPeriodDays;
+
+  return normalizeRadians(
+    startingMeanAnomaly +
+    meanMotionPerDay *
+    days
+  );
+}
+
+function solveKeplerMeanAnomaly(
+  meanAnomaly,
+  eccentricity
+) {
+  let eccentricAnomaly =
+    meanAnomaly;
+
+  for (let i = 0; i < 10; i += 1) {
+    eccentricAnomaly -=
+      (
+        eccentricAnomaly -
+        eccentricity *
+          Math.sin(eccentricAnomaly) -
+        meanAnomaly
+      ) /
+      (
+        1 -
+        eccentricity *
+          Math.cos(eccentricAnomaly)
+      );
+  }
+
+  return eccentricAnomaly;
+}
+
+function getMoonEclipticPosition(
+  daysSinceJ2000,
+  phaseAngle,
+  sunEclipticLongitude
+) {
+  const ascendingNode =
+    THREE.MathUtils.degToRad(
+      normalizeDegrees(
+        MOON_NODE_AT_J2000_DEGREES +
+        MOON_NODE_RATE_DEGREES_PER_DAY *
+        daysSinceJ2000
+      )
+    );
+
+  const argumentOfPerigee =
+    THREE.MathUtils.degToRad(
+      normalizeDegrees(
+        MOON_PERIGEE_AT_J2000_DEGREES +
+        MOON_PERIGEE_RATE_DEGREES_PER_DAY *
+        daysSinceJ2000
+      )
+    );
+
+  const meanAnomaly =
+    THREE.MathUtils.degToRad(
+      normalizeDegrees(
+        MOON_MEAN_ANOMALY_AT_J2000_DEGREES +
+        MOON_MEAN_MOTION_DEGREES_PER_DAY *
+        daysSinceJ2000
+      )
+    );
+
+  const eccentricAnomaly =
+    solveKeplerMeanAnomaly(
+      meanAnomaly,
+      MOON_ECCENTRICITY
+    );
+
+  const semiMajorAxis =
+    MOON_EARTH_RADIUS_RATIO;
+
+  const xOrbital =
+    semiMajorAxis *
+    (
+      Math.cos(eccentricAnomaly) -
+      MOON_ECCENTRICITY
+    );
+
+  const yOrbital =
+    semiMajorAxis *
+    Math.sqrt(
+      1 -
+      MOON_ECCENTRICITY *
+      MOON_ECCENTRICITY
+    ) *
+    Math.sin(eccentricAnomaly);
+
+  const xPerifocal =
+    xOrbital * Math.cos(argumentOfPerigee) -
+    yOrbital * Math.sin(argumentOfPerigee);
+
+  const yPerifocal =
+    xOrbital * Math.sin(argumentOfPerigee) +
+    yOrbital * Math.cos(argumentOfPerigee);
+
+  const cosNode =
+    Math.cos(ascendingNode);
+
+  const sinNode =
+    Math.sin(ascendingNode);
+
+  const cosInclination =
+    Math.cos(
+      THREE.MathUtils.degToRad(
+        MOON_INCLINATION_DEGREES
+      )
+    );
+
+  const sinInclination =
+    Math.sin(
+      THREE.MathUtils.degToRad(
+        MOON_INCLINATION_DEGREES
+      )
+    );
+
+  const rawX =
+    xPerifocal * cosNode -
+    yPerifocal * sinNode *
+    cosInclination;
+
+  const rawY =
+    yPerifocal *
+    sinInclination;
+
+  const rawZ =
+    xPerifocal * sinNode +
+    yPerifocal * cosNode *
+    cosInclination;
+
+  const rawDistance =
+    Math.sqrt(
+      rawX * rawX +
+      rawY * rawY +
+      rawZ * rawZ
+    );
+
+  const rawLatitude =
+    Math.asin(
+      THREE.MathUtils.clamp(
+        rawY / rawDistance,
+        -1,
+        1
+      )
+    );
+
+  /*
+   * The phase equation controls the Moon's longitude relative to
+   * the Sun, while the orbital model supplies realistic distance
+   * and a small 5.1°-class inclination above/below the ecliptic.
+   */
+  const targetLongitude =
+    sunEclipticLongitude +
+    phaseAngle;
+
+  const distance =
+    rawDistance *
+    EARTH_GAME_RADIUS;
+
+  return new THREE.Vector3(
+    distance *
+      Math.cos(rawLatitude) *
+      Math.cos(targetLongitude),
+
+    distance *
+      Math.sin(rawLatitude),
+
+    distance *
+      Math.cos(rawLatitude) *
+      Math.sin(targetLongitude)
+  );
+}
+
+function updateAstronomicalClock() {
+  astronomicalDate =
+    new Date();
+
+  return getAstronomicalDays(
+    astronomicalDate
+  );
+}
 
 
 /* =========================================================
@@ -2112,7 +2614,7 @@ function createPlanet(data) {
       moonPivot
     );
 
-    const moon =
+    moonMesh =
       new THREE.Mesh(
         new THREE.SphereGeometry(
           MOON_RADIUS,
@@ -2129,15 +2631,18 @@ function createPlanet(data) {
         })
       );
 
-    moon.position.x =
-      MOON_ORBIT_RADIUS;
+    moonMesh.position.set(
+      MOON_ORBIT_RADIUS,
+      0,
+      0
+    );
 
     moonPivot.add(
-      moon
+      moonMesh
     );
 
     sunOccluders.push(
-      moon
+      moonMesh
     );
   }
 
@@ -2147,8 +2652,9 @@ function createPlanet(data) {
      ======================================================= */
 
   const startingMeanAnomaly =
-    THREE.MathUtils.degToRad(
-      data.startMeanAnomalyDegrees
+    getPlanetMeanAnomalyAtDate(
+      data,
+      astronomicalDate
     );
 
   const initialEccentricAnomaly =
@@ -2194,9 +2700,24 @@ function createPlanet(data) {
     ) *
     SIMULATION_TIME_MULTIPLIER;
 
+  const elapsedSeconds =
+    getAstronomicalDays(
+      astronomicalDate
+    ) *
+    SECONDS_PER_DAY;
+
+  planet.rotation.y =
+    normalizeRadians(
+      spinSpeed *
+      elapsedSeconds
+    );
+
   const record = {
     name:
       data.name,
+
+    sourceData:
+      data,
 
     semiMajorAxis,
 
@@ -2245,6 +2766,8 @@ function createPlanet(data) {
    ========================================================= */
 
 function createSolarSystem() {
+  updateAstronomicalClock();
+
   scene =
     new THREE.Scene();
 
@@ -2795,6 +3318,204 @@ function isControlPressed(
 }
 
 
+function getCollisionBodies() {
+  const bodies = [];
+
+  for (
+    const planetData of
+      solarPlanets
+  ) {
+    if (
+      !planetData.planet ||
+      !planetData.radius
+    ) {
+      continue;
+    }
+
+    bodies.push({
+      mesh:
+        planetData.planet,
+      radius:
+        planetData.radius
+    });
+  }
+
+  if (
+    moonMesh
+  ) {
+    bodies.push({
+      mesh:
+        moonMesh,
+      radius:
+        MOON_RADIUS
+    });
+  }
+
+  return bodies;
+}
+
+function resolveBodyCollisions(
+  previousPosition,
+  proposedPosition
+) {
+  const bodies =
+    getCollisionBodies();
+
+  collisionStart.copy(
+    previousPosition
+  );
+
+  collisionDelta
+    .subVectors(
+      proposedPosition,
+      previousPosition
+    );
+
+  const movementLengthSq =
+    collisionDelta.lengthSq();
+
+  if (
+    movementLengthSq <
+    0.000001
+  ) {
+    return;
+  }
+
+  for (
+    const body of bodies
+  ) {
+    body.mesh.getWorldPosition(
+      collisionCenter
+    );
+
+    const radius =
+      body.radius +
+      COLLISION_MARGIN;
+
+    const startOffset =
+      new THREE.Vector3()
+        .subVectors(
+          collisionStart,
+          collisionCenter
+        );
+
+    const startDistance =
+      startOffset.length();
+
+    if (
+      startDistance < radius
+    ) {
+      collisionPush
+        .copy(startOffset)
+        .normalize();
+
+      if (
+        collisionPush.lengthSq() <
+        0.000001
+      ) {
+        collisionPush.set(
+          0,
+          0,
+          1
+        );
+      }
+
+      proposedPosition
+        .copy(collisionCenter)
+        .addScaledVector(
+          collisionPush,
+          radius
+        );
+
+      continue;
+    }
+
+    const toCenter =
+      new THREE.Vector3()
+        .subVectors(
+          collisionCenter,
+          collisionStart
+        );
+
+    const t =
+      THREE.MathUtils.clamp(
+        toCenter.dot(collisionDelta) /
+        movementLengthSq,
+        0,
+        1
+      );
+
+    collisionClosest
+      .copy(collisionStart)
+      .addScaledVector(
+        collisionDelta,
+        t
+      );
+
+    const closestDistance =
+      collisionClosest.distanceTo(
+        collisionCenter
+      );
+
+    if (
+      closestDistance >
+      radius
+    ) {
+      continue;
+    }
+
+    collisionPush
+      .subVectors(
+        collisionClosest,
+        collisionCenter
+      );
+
+    if (
+      collisionPush.lengthSq() <
+      0.000001
+    ) {
+      collisionPush
+        .copy(
+          collisionStart
+        )
+        .sub(
+          collisionCenter
+        );
+    }
+
+    collisionPush.normalize();
+
+    const safeT =
+      Math.max(
+        0,
+        t -
+          radius /
+          Math.sqrt(
+            movementLengthSq
+          )
+      );
+
+    proposedPosition
+      .copy(collisionStart)
+      .addScaledVector(
+        collisionDelta,
+        safeT
+      );
+
+    proposedPosition
+      .sub(
+        collisionCenter
+      )
+      .normalize()
+      .multiplyScalar(
+        radius
+      )
+      .add(
+        collisionCenter
+      );
+  }
+}
+
 function updateMovement(
   deltaTime
 ) {
@@ -2864,10 +3585,16 @@ function updateMovement(
     return false;
   }
 
+  const previousPosition =
+    camera.position.clone();
+
+  const proposedPosition =
+    camera.position.clone();
+
   if (
     movingForward
   ) {
-    camera.position.addScaledVector(
+    proposedPosition.addScaledVector(
       tempDirection,
       currentMovementSpeed *
         deltaTime
@@ -2877,7 +3604,7 @@ function updateMovement(
   if (
     movingBack
   ) {
-    camera.position.addScaledVector(
+    proposedPosition.addScaledVector(
       tempDirection,
       -currentMovementSpeed *
         deltaTime
@@ -2887,7 +3614,7 @@ function updateMovement(
   if (
     movingRight
   ) {
-    camera.position.addScaledVector(
+    proposedPosition.addScaledVector(
       tempRight,
       currentMovementSpeed *
         deltaTime
@@ -2897,7 +3624,7 @@ function updateMovement(
   if (
     movingLeft
   ) {
-    camera.position.addScaledVector(
+    proposedPosition.addScaledVector(
       tempRight,
       -currentMovementSpeed *
         deltaTime
@@ -2907,7 +3634,7 @@ function updateMovement(
   if (
     movingUp
   ) {
-    camera.position.addScaledVector(
+    proposedPosition.addScaledVector(
       worldUp,
       currentMovementSpeed *
         deltaTime
@@ -2917,12 +3644,21 @@ function updateMovement(
   if (
     movingDown
   ) {
-    camera.position.addScaledVector(
+    proposedPosition.addScaledVector(
       worldUp,
       -currentMovementSpeed *
         deltaTime
     );
   }
+
+  resolveBodyCollisions(
+    previousPosition,
+    proposedPosition
+  );
+
+  camera.position.copy(
+    proposedPosition
+  );
 
   return true;
 }
@@ -2935,6 +3671,9 @@ function updateMovement(
 function updateOrbits(
   deltaTime
 ) {
+  const daysSinceJ2000 =
+    updateAstronomicalClock();
+
   for (
     const planetData of
       solarPlanets
@@ -2945,17 +3684,17 @@ function updateOrbits(
       continue;
     }
 
-    planetData.meanAnomaly +=
-      planetData.meanMotion *
-      deltaTime;
-
-    if (
-      planetData.meanAnomaly >
-      Math.PI * 2
-    ) {
-      planetData.meanAnomaly -=
-        Math.PI * 2;
-    }
+    /*
+     * Planetary orbital state is tied to the host clock.
+     * The existing startMeanAnomaly values are the J2000
+     * reference states, so the same Kepler model now advances
+     * from the actual device date instead of from page load.
+     */
+    planetData.meanAnomaly =
+      getPlanetMeanAnomalyAtDate(
+        planetData.sourceData,
+        astronomicalDate
+      );
 
     const eccentricAnomaly =
       solveEccentricAnomaly(
@@ -2973,32 +3712,157 @@ function updateOrbits(
         )
       );
 
-    planetData.planet.rotation.y +=
-      planetData.spinSpeed *
-      deltaTime;
+    const elapsedSeconds =
+      daysSinceJ2000 *
+      SECONDS_PER_DAY;
+
+    planetData.planet.rotation.y =
+      normalizeRadians(
+        planetData.spinSpeed *
+        elapsedSeconds
+      );
 
     if (
       planetData.cloudMesh
     ) {
-      planetData.cloudMesh.rotation.y +=
-        planetData.spinSpeed *
-        0.94 *
-        deltaTime;
+      planetData.cloudMesh.rotation.y =
+        normalizeRadians(
+          planetData.spinSpeed *
+          0.94 *
+          elapsedSeconds
+        );
     }
   }
 
   if (
-    moonPivot
+    moonPivot &&
+    moonMesh
   ) {
-    moonPivot.rotation.y +=
-      (
-        Math.PI * 2 /
-        (
-          MOON_ORBIT_PERIOD_DAYS *
-          SECONDS_PER_DAY
+    const phaseState =
+      getLunarPhaseState(
+        astronomicalDate
+      );
+
+    moonPhaseAngle =
+      phaseState.phaseAngle;
+
+    moonIlluminationFraction =
+      phaseState.illuminationFraction;
+
+    /*
+     * Recover the Sun's geocentric ecliptic longitude from the
+     * already-date-synchronized Earth orbit.  Our game maps the
+     * ecliptic +Z axis to game -Z.
+     */
+    const earthRecord =
+      solarPlanets.find(
+        (planetData) =>
+          planetData.name ===
+          "Earth"
+      );
+
+    let sunEclipticLongitude =
+      0;
+
+    if (
+      earthRecord
+    ) {
+      earthRecord
+        .orbitalBodyGroup
+        .getWorldPosition(
+          collisionCenter
+        );
+
+      const sunFromEarthX =
+        -collisionCenter.x;
+
+      const sunFromEarthZ =
+        -collisionCenter.z;
+
+      sunEclipticLongitude =
+        Math.atan2(
+          -sunFromEarthZ,
+          sunFromEarthX
+        );
+    }
+
+    moonOrbitalPosition.copy(
+      getMoonEclipticPosition(
+        daysSinceJ2000,
+        moonPhaseAngle,
+        sunEclipticLongitude
+      )
+    );
+
+    moonMesh.position.set(
+      moonOrbitalPosition.x,
+      moonOrbitalPosition.y,
+      -moonOrbitalPosition.z
+    );
+
+    const moonWorldPosition =
+      moonMesh.getWorldPosition(
+        tempWorld
+      );
+
+    /*
+     * Approximate tidal locking so the near side remains aimed
+     * generally toward Earth as the Moon travels around it.
+     */
+    moonMesh.rotation.y =
+      Math.atan2(
+        -moonMesh.position.x,
+        -moonMesh.position.z
+      );
+
+    moonSunDirection
+      .subVectors(
+        sunPosition,
+        moonWorldPosition
+      )
+      .normalize();
+
+    const earthWorldPosition =
+      moonPivot.parent
+        ? moonPivot.parent.getWorldPosition(
+            collisionCenter
+          )
+        : collisionCenter.set(
+            0,
+            0,
+            0
+          );
+
+    const moonToEarth =
+      new THREE.Vector3()
+        .subVectors(
+          earthWorldPosition,
+          moonWorldPosition
         )
-      ) *
-      deltaTime;
+        .normalize();
+
+    /*
+     * Physical illumination check from the actual three-body
+     * geometry.  The visible renderer is still produced by the
+     * Sun's PointLight hitting the Moon's StandardMaterial.
+     */
+    const physicalPhaseAngle =
+      Math.acos(
+        THREE.MathUtils.clamp(
+          moonSunDirection.dot(
+            moonToEarth
+          ),
+          -1,
+          1
+        )
+      );
+
+    moonIlluminationFraction =
+      (1 -
+        Math.cos(
+          physicalPhaseAngle
+        )) *
+      0.5;
   }
 }
 
