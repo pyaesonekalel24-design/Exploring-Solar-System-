@@ -1,4 +1,3 @@
-
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
 
 const $ = (id) => document.getElementById(id);
@@ -297,12 +296,12 @@ const controlKeys = {
   ]
 };
 
+
 /* =========================================================
    CLOCK
    ========================================================= */
 
 const clock = new THREE.Clock();
-
 
 
 /* =========================================================
@@ -359,15 +358,6 @@ const collisionClosest =
   new THREE.Vector3();
 
 const collisionPush =
-  new THREE.Vector3();
-
-const collisionRemaining =
-  new THREE.Vector3();
-
-const collisionNormal =
-  new THREE.Vector3();
-
-const collisionContact =
   new THREE.Vector3();
 
 const COLLISION_MARGIN =
@@ -564,28 +554,12 @@ const MOON_ORBIT_RADIUS =
 const MOON_ORBIT_PERIOD_DAYS =
   27.322;
 
-
-/* =========================================================
-   ASTRONOMICAL DATE / EARTH ROTATION
-   =========================================================
-
-   The browser Date object is the host device clock.
-
-   UTC is used internally so the same instant produces the
-   same Solar System state on every device.
-
-   Earth rotation is now tied to Greenwich Mean Sidereal Time
-   instead of simply using:
-
-       spinSpeed * elapsedSeconds
-
-   That gives the Earth a real astronomical orientation for
-   the current date and time.
-
-   This is what allows the physical Sun light to illuminate
-   the correct side of Earth at the correct time.
-   ========================================================= */
-
+/*
+ * Astronomical clock / date state.
+ * The browser's Date object is the host device clock.  We use UTC
+ * internally so the same instant produces the same Solar System state
+ * on every device, regardless of local timezone.
+ */
 const J2000_EPOCH_MS =
   Date.UTC(2000, 0, 1, 12, 0, 0);
 
@@ -594,11 +568,6 @@ const DAY_MS =
 
 const JULIAN_CENTURY_DAYS =
   36_525;
-
-
-/* =========================================================
-   MOON ASTRONOMICAL STATE
-   ========================================================= */
 
 const MOON_EARTH_RADIUS_RATIO =
   60.2666;
@@ -627,17 +596,16 @@ const MOON_MEAN_ANOMALY_AT_J2000_DEGREES =
 const MOON_MEAN_MOTION_DEGREES_PER_DAY =
   13.0649929509;
 
-
-/* =========================================================
-   MEEUS NEW MOON MODEL
-   ========================================================= */
-
+/*
+ * Meeus new-moon model.
+ * This gives us a real astronomical phase timestamp rather than
+ * guessing a 29.5-day cycle from a hard-coded game angle.
+ */
 const NEW_MOON_BASE_JD =
   2451550.09765;
 
 const SYNODIC_MONTH_DAYS =
   29.530588853;
-
 
 function julianDateFromDate(date) {
   return (
@@ -645,7 +613,6 @@ function julianDateFromDate(date) {
     date.getTime() / DAY_MS
   );
 }
-
 
 function dateFromJulianDate(julianDate) {
   return new Date(
@@ -656,14 +623,13 @@ function dateFromJulianDate(julianDate) {
   );
 }
 
-
 function getMeeusNewMoonJulianDate(k) {
   const T =
     k / 1236.85;
 
   const T2 = T * T;
   const T3 = T2 * T;
-  const T4 = T2 * T2;
+  const T4 = T3 * T;
 
   const E =
     1 -
@@ -741,7 +707,6 @@ function getMeeusNewMoonJulianDate(k) {
   );
 }
 
-
 function getLunarPhaseState(date) {
   const julianDate =
     julianDateFromDate(date);
@@ -776,7 +741,6 @@ function getLunarPhaseState(date) {
     julianDate
   ) {
     previousK -= 1;
-
     previousNewMoonJD =
       getMeeusNewMoonJulianDate(
         previousK
@@ -788,7 +752,6 @@ function getLunarPhaseState(date) {
     julianDate
   ) {
     nextK += 1;
-
     nextNewMoonJD =
       getMeeusNewMoonJulianDate(
         nextK
@@ -816,27 +779,19 @@ function getLunarPhaseState(date) {
 
   return {
     phaseAngle,
-
     illuminationFraction:
       (1 - Math.cos(phaseAngle)) *
       0.5,
-
     previousNewMoon:
       dateFromJulianDate(
         previousNewMoonJD
       ),
-
     nextNewMoon:
       dateFromJulianDate(
         nextNewMoonJD
       )
   };
 }
-
-
-/* =========================================================
-   ASTRONOMICAL DATE STATE
-   ========================================================= */
 
 let astronomicalDate =
   new Date();
@@ -855,136 +810,41 @@ let moonPhaseAngle =
 let moonIlluminationFraction =
   1;
 
-
-function getAstronomicalDays(
-  date = new Date()
-) {
+function getAstronomicalDays(date = new Date()) {
   return (
     date.getTime() -
     J2000_EPOCH_MS
   ) / DAY_MS;
 }
 
-
 function normalizeRadians(angle) {
-  const fullTurn =
-    Math.PI * 2;
+  const fullTurn = Math.PI * 2;
 
   angle %= fullTurn;
 
-  if (
-    angle < 0
-  ) {
+  if (angle < 0) {
     angle += fullTurn;
   }
 
   return angle;
 }
 
-
 function normalizeDegrees(angle) {
   angle %= 360;
 
-  if (
-    angle < 0
-  ) {
+  if (angle < 0) {
     angle += 360;
   }
 
   return angle;
 }
 
-
-/* =========================================================
-   EARTH SIDEREAL ROTATION
-   =========================================================
-
-   Greenwich Mean Sidereal Time gives the orientation of Earth's
-   Greenwich meridian relative to the inertial sky.
-
-   This is deliberately separate from the orbital calculation.
-
-   Earth orbit:
-       tells us where Earth is around the Sun.
-
-   Earth sidereal rotation:
-       tells us which longitude is facing the sky/Sun.
-
-   Together they give the correct day/night side.
-   ========================================================= */
-
-function getGreenwichSiderealTimeDegrees(
-  date
-) {
-  const julianDate =
-    julianDateFromDate(
-      date
-    );
-
-  const centuries =
-    (
-      julianDate -
-      2451545.0
-    ) /
-    JULIAN_CENTURY_DAYS;
-
-  const gmst =
-    280.46061837 +
-    360.98564736629 *
-      (
-        julianDate -
-        2451545.0
-      ) +
-    0.000387933 *
-      centuries *
-      centuries -
-    (
-      centuries *
-      centuries *
-      centuries
-    ) /
-      38_710_000;
-
-  return normalizeDegrees(
-    gmst
-  );
-}
-
-
-function getEarthRotationAngleRadians(
-  date
-) {
-  /*
-   * Three.js SphereGeometry places the texture seam along the
-   * local X/Z equatorial plane.  A 90° phase aligns the
-   * astronomical Greenwich orientation with the game's sphere
-   * coordinate convention.
-   *
-   * The resulting angle is wrapped every revolution, so there
-   * is no large-number accumulation over long play sessions.
-   */
-  const siderealDegrees =
-    getGreenwichSiderealTimeDegrees(
-      date
-    );
-
-  return normalizeRadians(
-    THREE.MathUtils.degToRad(
-      siderealDegrees +
-      90
-    )
-  );
-}
-
-
 function getPlanetMeanAnomalyAtDate(
   data,
   date
 ) {
   const days =
-    getAstronomicalDays(
-      date
-    );
+    getAstronomicalDays(date);
 
   const startingMeanAnomaly =
     THREE.MathUtils.degToRad(
@@ -1002,7 +862,6 @@ function getPlanetMeanAnomalyAtDate(
   );
 }
 
-
 function solveKeplerMeanAnomaly(
   meanAnomaly,
   eccentricity
@@ -1010,32 +869,23 @@ function solveKeplerMeanAnomaly(
   let eccentricAnomaly =
     meanAnomaly;
 
-  for (
-    let i = 0;
-    i < 10;
-    i += 1
-  ) {
+  for (let i = 0; i < 10; i += 1) {
     eccentricAnomaly -=
       (
         eccentricAnomaly -
         eccentricity *
-          Math.sin(
-            eccentricAnomaly
-          ) -
+          Math.sin(eccentricAnomaly) -
         meanAnomaly
       ) /
       (
         1 -
         eccentricity *
-          Math.cos(
-            eccentricAnomaly
-          )
+          Math.cos(eccentricAnomaly)
       );
   }
 
   return eccentricAnomaly;
 }
-
 
 function getMoonEclipticPosition(
   daysSinceJ2000,
@@ -1081,9 +931,7 @@ function getMoonEclipticPosition(
   const xOrbital =
     semiMajorAxis *
     (
-      Math.cos(
-        eccentricAnomaly
-      ) -
+      Math.cos(eccentricAnomaly) -
       MOON_ECCENTRICITY
     );
 
@@ -1092,41 +940,23 @@ function getMoonEclipticPosition(
     Math.sqrt(
       1 -
       MOON_ECCENTRICITY *
-        MOON_ECCENTRICITY
+      MOON_ECCENTRICITY
     ) *
-    Math.sin(
-      eccentricAnomaly
-    );
+    Math.sin(eccentricAnomaly);
 
   const xPerifocal =
-    xOrbital *
-      Math.cos(
-        argumentOfPerigee
-      ) -
-    yOrbital *
-      Math.sin(
-        argumentOfPerigee
-      );
+    xOrbital * Math.cos(argumentOfPerigee) -
+    yOrbital * Math.sin(argumentOfPerigee);
 
   const yPerifocal =
-    xOrbital *
-      Math.sin(
-        argumentOfPerigee
-      ) +
-    yOrbital *
-      Math.cos(
-        argumentOfPerigee
-      );
+    xOrbital * Math.sin(argumentOfPerigee) +
+    yOrbital * Math.cos(argumentOfPerigee);
 
   const cosNode =
-    Math.cos(
-      ascendingNode
-    );
+    Math.cos(ascendingNode);
 
   const sinNode =
-    Math.sin(
-      ascendingNode
-    );
+    Math.sin(ascendingNode);
 
   const cosInclination =
     Math.cos(
@@ -1143,22 +973,18 @@ function getMoonEclipticPosition(
     );
 
   const rawX =
-    xPerifocal *
-      cosNode -
-    yPerifocal *
-      sinNode *
-      cosInclination;
+    xPerifocal * cosNode -
+    yPerifocal * sinNode *
+    cosInclination;
 
   const rawY =
     yPerifocal *
     sinInclination;
 
   const rawZ =
-    xPerifocal *
-      sinNode +
-    yPerifocal *
-      cosNode *
-      cosInclination;
+    xPerifocal * sinNode +
+    yPerifocal * cosNode *
+    cosInclination;
 
   const rawDistance =
     Math.sqrt(
@@ -1170,17 +996,16 @@ function getMoonEclipticPosition(
   const rawLatitude =
     Math.asin(
       THREE.MathUtils.clamp(
-        rawY /
-          rawDistance,
+        rawY / rawDistance,
         -1,
         1
       )
     );
 
   /*
-   * The phase equation controls the Moon's longitude relative
-   * to the Sun, while the orbital model supplies realistic
-   * distance and inclination.
+   * The phase equation controls the Moon's longitude relative to
+   * the Sun, while the orbital model supplies realistic distance
+   * and a small 5.1°-class inclination above/below the ecliptic.
    */
   const targetLongitude =
     sunEclipticLongitude +
@@ -1192,28 +1017,17 @@ function getMoonEclipticPosition(
 
   return new THREE.Vector3(
     distance *
-      Math.cos(
-        rawLatitude
-      ) *
-      Math.cos(
-        targetLongitude
-      ),
+      Math.cos(rawLatitude) *
+      Math.cos(targetLongitude),
 
     distance *
-      Math.sin(
-        rawLatitude
-      ),
+      Math.sin(rawLatitude),
 
     distance *
-      Math.cos(
-        rawLatitude
-      ) *
-      Math.sin(
-        targetLongitude
-      )
+      Math.cos(rawLatitude) *
+      Math.sin(targetLongitude)
   );
 }
-
 
 function updateAstronomicalClock() {
   astronomicalDate =
@@ -1493,6 +1307,11 @@ function setSpeedMode(mode) {
   currentSpeedMode =
     mode;
 
+  /*
+   * Chill and Creator are intentionally instant and fixed.
+   * This prevents Creator/Chill from inheriting a previous
+   * Superman acceleration state.
+   */
   if (
     mode === "chill" ||
     mode === "creator"
@@ -2887,26 +2706,11 @@ function createPlanet(data) {
     ) *
     SECONDS_PER_DAY;
 
-  /*
-   * All planets keep their existing date-linked spin behavior.
-   *
-   * Earth is special:
-   * its rotation is replaced below by actual sidereal time.
-   */
-  if (
-    data.name === "Earth"
-  ) {
-    planet.rotation.y =
-      getEarthRotationAngleRadians(
-        astronomicalDate
-      );
-  } else {
-    planet.rotation.y =
-      normalizeRadians(
-        spinSpeed *
-        elapsedSeconds
-      );
-  }
+  planet.rotation.y =
+    normalizeRadians(
+      spinSpeed *
+      elapsedSeconds
+    );
 
   const record = {
     name:
@@ -3025,8 +2829,8 @@ function createSolarSystem() {
   /*
    * The Sun is the actual solar-system light source.
    *
-   * PointLight emits from the Sun in every direction, so the
-   * hemisphere of Earth facing the Sun is naturally illuminated.
+   * The light lives inside solarSystemRoot so the floating
+   * origin system moves it together with the Sun.
    */
   sunLight =
     new THREE.PointLight(
@@ -3116,6 +2920,9 @@ function createSolarSystem() {
 
   /* =======================================================
      SUN BODY RECORD
+     The Sun uses the same label + Creator teleport system
+     as every planet, while remaining physically stationary
+     at the solar-system origin.
      ======================================================= */
 
   const sunRecord = {
@@ -3528,7 +3335,6 @@ function getCollisionBodies() {
     bodies.push({
       mesh:
         planetData.planet,
-
       radius:
         planetData.radius
     });
@@ -3540,7 +3346,6 @@ function getCollisionBodies() {
     bodies.push({
       mesh:
         moonMesh,
-
       radius:
         MOON_RADIUS
     });
@@ -3549,24 +3354,6 @@ function getCollisionBodies() {
   return bodies;
 }
 
-
-/*
- * Collision response:
- *
- * The old version correctly detected collisions, but it always
- * pushed the camera back to the sphere surface.  That created
- * the "glue" effect.
- *
- * This version treats the planet surface like a wall.
- *
- * Forward into planet  = blocked
- * Back away            = works
- * Strafe around planet = works
- * Fly diagonally       = slides
- *
- * The swept test is still used, so Superman cannot tunnel
- * through planets just because his movement step is huge.
- */
 function resolveBodyCollisions(
   previousPosition,
   proposedPosition
@@ -3584,6 +3371,16 @@ function resolveBodyCollisions(
       previousPosition
     );
 
+  const movementLengthSq =
+    collisionDelta.lengthSq();
+
+  if (
+    movementLengthSq <
+    0.000001
+  ) {
+    return;
+  }
+
   for (
     const body of bodies
   ) {
@@ -3595,101 +3392,39 @@ function resolveBodyCollisions(
       body.radius +
       COLLISION_MARGIN;
 
-    const movementLengthSq =
-      collisionDelta.lengthSq();
-
-    if (
-      movementLengthSq <
-      0.000001
-    ) {
-      break;
-    }
-
-    const movementLength =
-      Math.sqrt(
-        movementLengthSq
-      );
-
-    collisionPush
-      .subVectors(
-        collisionStart,
-        collisionCenter
-      );
+    const startOffset =
+      new THREE.Vector3()
+        .subVectors(
+          collisionStart,
+          collisionCenter
+        );
 
     const startDistance =
-      collisionPush.length();
+      startOffset.length();
 
     if (
-      startDistance <=
-      radius
+      startDistance < radius
     ) {
+      collisionPush
+        .copy(startOffset)
+        .normalize();
+
       if (
-        startDistance >
+        collisionPush.lengthSq() <
         0.000001
       ) {
-        collisionNormal
-          .copy(
-            collisionPush
-          )
-          .divideScalar(
-            startDistance
-          );
-      } else {
-        collisionNormal
-          .copy(
-            collisionDelta
-          )
-          .multiplyScalar(
-            -1
-          );
-
-        if (
-          collisionNormal.lengthSq() <
-          0.000001
-        ) {
-          collisionNormal.set(
-            0,
-            0,
-            1
-          );
-        } else {
-          collisionNormal.normalize();
-        }
-      }
-
-      collisionContact
-        .copy(
-          collisionCenter
-        )
-        .addScaledVector(
-          collisionNormal,
-          radius
-        );
-
-      const inwardAmount =
-        collisionDelta.dot(
-          collisionNormal
-        );
-
-      if (
-        inwardAmount < 0
-      ) {
-        collisionDelta.addScaledVector(
-          collisionNormal,
-          -inwardAmount
+        collisionPush.set(
+          0,
+          0,
+          1
         );
       }
-
-      collisionStart.copy(
-        collisionContact
-      );
 
       proposedPosition
-        .copy(
-          collisionStart
-        )
-        .add(
-          collisionDelta
+        .copy(collisionCenter)
+        .addScaledVector(
+          collisionPush,
+          radius
         );
 
       continue;
@@ -3704,18 +3439,14 @@ function resolveBodyCollisions(
 
     const t =
       THREE.MathUtils.clamp(
-        toCenter.dot(
-          collisionDelta
-        ) /
+        toCenter.dot(collisionDelta) /
         movementLengthSq,
         0,
         1
       );
 
     collisionClosest
-      .copy(
-        collisionStart
-      )
+      .copy(collisionStart)
       .addScaledVector(
         collisionDelta,
         t
@@ -3750,45 +3481,28 @@ function resolveBodyCollisions(
         .sub(
           collisionCenter
         );
-
-      if (
-        collisionPush.lengthSq() <
-        0.000001
-      ) {
-        collisionPush
-          .copy(
-            collisionDelta
-          )
-          .multiplyScalar(
-            -1
-          );
-      }
     }
 
-    collisionNormal
-      .copy(
-        collisionPush
-      )
-      .normalize();
+    collisionPush.normalize();
 
     const safeT =
       Math.max(
         0,
         t -
           radius /
-          movementLength
+          Math.sqrt(
+            movementLengthSq
+          )
       );
 
-    collisionContact
-      .copy(
-        collisionStart
-      )
+    proposedPosition
+      .copy(collisionStart)
       .addScaledVector(
         collisionDelta,
         safeT
       );
 
-    collisionContact
+    proposedPosition
       .sub(
         collisionCenter
       )
@@ -3799,49 +3513,8 @@ function resolveBodyCollisions(
       .add(
         collisionCenter
       );
-
-    collisionRemaining
-      .copy(
-        proposedPosition
-      )
-      .sub(
-        collisionContact
-      );
-
-    const remainingInward =
-      collisionRemaining.dot(
-        collisionNormal
-      );
-
-    if (
-      remainingInward < 0
-    ) {
-      collisionRemaining.addScaledVector(
-        collisionNormal,
-        -remainingInward
-      );
-    }
-
-    proposedPosition
-      .copy(
-        collisionContact
-      )
-      .add(
-        collisionRemaining
-      );
-
-    collisionStart.copy(
-      collisionContact
-    );
-
-    collisionDelta
-      .subVectors(
-        proposedPosition,
-        collisionStart
-      );
   }
 }
-
 
 function updateMovement(
   deltaTime
@@ -4013,6 +3686,9 @@ function updateOrbits(
 
     /*
      * Planetary orbital state is tied to the host clock.
+     * The existing startMeanAnomaly values are the J2000
+     * reference states, so the same Kepler model now advances
+     * from the actual device date instead of from page load.
      */
     planetData.meanAnomaly =
       getPlanetMeanAnomalyAtDate(
@@ -4040,86 +3716,23 @@ function updateOrbits(
       daysSinceJ2000 *
       SECONDS_PER_DAY;
 
-
-    /* =======================================================
-       EARTH ROTATION
-       =======================================================
-
-       This is the important new part.
-
-       Earth is no longer rotated using only a simple elapsed
-       seconds calculation.
-
-       Instead, its orientation is tied directly to the actual
-       astronomical sidereal time for the current device date.
-
-       Therefore:
-
-           device clock
-                ↓
-           UTC instant
-                ↓
-           Julian Date
-                ↓
-           Greenwich Sidereal Time
-                ↓
-           Earth orientation
-                ↓
-           Sun's real lighting
-                ↓
-           real day/night side
-       ======================================================= */
-
-    if (
-      planetData.name ===
-      "Earth"
-    ) {
-      planetData.planet.rotation.y =
-        getEarthRotationAngleRadians(
-          astronomicalDate
-        );
-    } else {
-      planetData.planet.rotation.y =
-        normalizeRadians(
-          planetData.spinSpeed *
-          elapsedSeconds
-        );
-    }
-
-
-    /* =======================================================
-       CLOUD ROTATION
-       ======================================================= */
+    planetData.planet.rotation.y =
+      normalizeRadians(
+        planetData.spinSpeed *
+        elapsedSeconds
+      );
 
     if (
       planetData.cloudMesh
     ) {
-      if (
-        planetData.name ===
-        "Earth"
-      ) {
-        planetData.cloudMesh.rotation.y =
-          normalizeRadians(
-            getEarthRotationAngleRadians(
-              astronomicalDate
-            ) *
-            0.999
-          );
-      } else {
-        planetData.cloudMesh.rotation.y =
-          normalizeRadians(
-            planetData.spinSpeed *
-            0.94 *
-            elapsedSeconds
-          );
-      }
+      planetData.cloudMesh.rotation.y =
+        normalizeRadians(
+          planetData.spinSpeed *
+          0.94 *
+          elapsedSeconds
+        );
     }
   }
-
-
-  /* =========================================================
-     MOON
-     ========================================================= */
 
   if (
     moonPivot &&
@@ -4138,9 +3751,8 @@ function updateOrbits(
 
     /*
      * Recover the Sun's geocentric ecliptic longitude from the
-     * already-date-synchronized Earth orbit.
-     *
-     * Our game maps the ecliptic +Z axis to game -Z.
+     * already-date-synchronized Earth orbit.  Our game maps the
+     * ecliptic +Z axis to game -Z.
      */
     const earthRecord =
       solarPlanets.find(
@@ -4194,7 +3806,8 @@ function updateOrbits(
       );
 
     /*
-     * Approximate tidal locking.
+     * Approximate tidal locking so the near side remains aimed
+     * generally toward Earth as the Moon travels around it.
      */
     moonMesh.rotation.y =
       Math.atan2(
@@ -4230,7 +3843,8 @@ function updateOrbits(
 
     /*
      * Physical illumination check from the actual three-body
-     * geometry.
+     * geometry.  The visible renderer is still produced by the
+     * Sun's PointLight hitting the Moon's StandardMaterial.
      */
     const physicalPhaseAngle =
       Math.acos(
