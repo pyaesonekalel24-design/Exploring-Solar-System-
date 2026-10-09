@@ -709,16 +709,7 @@ function normalizeDegrees(angle) {
    Together they give the correct day/night side.
    ========================================================= */
 
-  return normalizeRadians(
-    THREE.MathUtils.degToRad(
-      siderealDegrees +
-      90
-    )
-  );
-}
-
-
-function getPlanetMeanAnomalyAtDate(
+  function getPlanetMeanAnomalyAtDate(
   data,
   date
 ) {
