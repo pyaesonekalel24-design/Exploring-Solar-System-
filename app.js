@@ -12,7 +12,9 @@ import {
   getMeeusNewMoonJulianDate,
   getLunarPhaseState,
   julianDateFromDate,
-  dateFromJulianDate
+  dateFromJulianDate,
+  getGreenwichSiderealTimeDegrees,
+  getEarthRotationAngleRadians
 } from "./astronomy.js";
 
 const $ = (id) => document.getElementById(id);
@@ -597,10 +599,6 @@ const J2000_EPOCH_MS =
 const DAY_MS =
   86_400_000;
 
-const JULIAN_CENTURY_DAYS =
-  36_525;
-
-
 /* =========================================================
    MOON ASTRONOMICAL STATE
    ========================================================= */
@@ -710,61 +708,6 @@ function normalizeDegrees(angle) {
 
    Together they give the correct day/night side.
    ========================================================= */
-
-function getGreenwichSiderealTimeDegrees(
-  date
-) {
-  const julianDate =
-    julianDateFromDate(
-      date
-    );
-
-  const centuries =
-    (
-      julianDate -
-      2451545.0
-    ) /
-    JULIAN_CENTURY_DAYS;
-
-  const gmst =
-    280.46061837 +
-    360.98564736629 *
-      (
-        julianDate -
-        2451545.0
-      ) +
-    0.000387933 *
-      centuries *
-      centuries -
-    (
-      centuries *
-      centuries *
-      centuries
-    ) /
-      38_710_000;
-
-  return normalizeDegrees(
-    gmst
-  );
-}
-
-
-function getEarthRotationAngleRadians(
-  date
-) {
-  /*
-   * Three.js SphereGeometry places the texture seam along the
-   * local X/Z equatorial plane.  A 90° phase aligns the
-   * astronomical Greenwich orientation with the game's sphere
-   * coordinate convention.
-   *
-   * The resulting angle is wrapped every revolution, so there
-   * is no large-number accumulation over long play sessions.
-   */
-  const siderealDegrees =
-    getGreenwichSiderealTimeDegrees(
-      date
-    );
 
   return normalizeRadians(
     THREE.MathUtils.degToRad(
