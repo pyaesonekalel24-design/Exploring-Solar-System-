@@ -4337,7 +4337,8 @@ function startGame() {
     }
   }
 
-  setTimeout(updateLoading, 100);
+  console.log("Loading animation started");
+setTimeout(updateLoading, 100);
 }
 
 /* =========================================================
