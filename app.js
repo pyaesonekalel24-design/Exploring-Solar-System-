@@ -3031,29 +3031,13 @@ function createSolarSystem() {
   /* =======================================================
      INITIAL CAMERA
      ======================================================= */
-
-  const earthData =
-    solarPlanets.find(
-      (planet) =>
-        planet.name ===
-        "Earth"
-    );
-
-  if (
-    earthData
-  ) {
-    earthData.planet.getWorldPosition(
-      tempWorld
-    );
-
-    camera.position.copy(
-      tempWorld
-    );
-
-    camera.position.z +=
-      140 *
-      SOLAR_SYSTEM_SCALE;
-  }
+  
+  camera.position.set(
+    0,
+    0,
+    15000 *
+      SOLAR_SYSTEM_SCALE
+  );
 
   updateSunWorldPosition();
 
