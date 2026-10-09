@@ -3035,7 +3035,7 @@ function createSolarSystem() {
   camera.position.set(
     0,
     0,
-    15000 *
+    65000 *
       SOLAR_SYSTEM_SCALE
   );
 
