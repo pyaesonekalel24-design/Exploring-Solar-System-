@@ -4277,69 +4277,30 @@ function animate() {
   );
 }
 
+
 /* =========================================================
    START GAME
    ========================================================= */
 
 function startGame() {
-  if (gameStarted) {
-    return;
-  }
-
-  gameStarted = true;
-
-  startScreen.hidden = true;
-  gameUI.hidden = false;
-
-  const loadingScreen =
-    document.getElementById("loading-screen");
-
-  const loadingText =
-    document.getElementById("loading-text");
-
-  const loadingProgress =
-    document.getElementById("loading-progress");
-
   if (
-    !loadingScreen ||
-    !loadingText ||
-    !loadingProgress
+    gameStarted
   ) {
-    renderer.domElement.focus();
     return;
   }
 
-  loadingScreen.classList.remove("finished");
+  gameStarted =
+    true;
 
-  let progress = 0;
+  startScreen.hidden =
+    true;
 
-  loadingText.textContent = "LOADING... 0%";
-  loadingProgress.style.width = "0%";
+  gameUI.hidden =
+    false;
 
-  function updateLoading() {
-    progress = Math.min(progress + 2, 100);
-
-    loadingText.textContent =
-      "LOADING... " + progress + "%";
-
-    loadingProgress.style.width =
-      progress + "%";
-
-    if (progress < 100) {
-      requestAnimationFrame(() => {
-        setTimeout(updateLoading, 30);
-      });
-    } else {
-      setTimeout(() => {
-        loadingScreen.classList.add("finished");
-        renderer.domElement.focus();
-      }, 300);
-    }
-  }
-
-  console.log("Loading animation started");
-setTimeout(updateLoading, 100);
+  renderer.domElement.focus();
 }
+
 
 /* =========================================================
    CONTROLS
