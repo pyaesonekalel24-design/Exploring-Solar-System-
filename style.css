@@ -130,40 +130,41 @@ button {
 }
 
 .planet-label {
-  position: absolute;
-  left: 0;
-  top: 0;
+position: absolute;
+left: 0;
+top: 0;
 
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
+display: flex;
+flex-direction: column;
+align-items: center;
+gap: 3px;
 
-  padding: 5px 9px;
+padding: 0;
+border: none;
+border-radius: 0;
+background: transparent;
 
-  border: 1px solid rgba(210, 225, 255, 0.22);
-  border-radius: 999px;
+color: #ffffff;
 
-  background: rgba(5, 8, 20, 0.52);
+font-size: 10px;
+font-weight: 800;
+letter-spacing: 0.09em;
+line-height: 1;
 
-  color: #ffffff;
+text-shadow:
+0 1px 3px #000000,
+0 0 8px rgba(0, 0, 0, 0.9);
 
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.09em;
-  line-height: 1;
+white-space: nowrap;
 
-  text-shadow: 0 1px 5px #000000;
+transform: translate(-50%, -125%);
 
-  white-space: nowrap;
+will-change: transform, left, top, opacity;
 
-  transform: translate(-50%, -125%);
-
-  will-change: transform, left, top, opacity;
-
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
+backdrop-filter: none;
+-webkit-backdrop-filter: none;
 }
+
 
 .planet-label-name {
   font-size: 10px;
@@ -180,9 +181,6 @@ button {
 #planet-label-layer.creator-enabled .planet-label {
   pointer-events: auto;
   cursor: pointer;
-
-  border-color: rgba(205, 158, 255, 0.62);
-  background: rgba(38, 18, 66, 0.68);
 }
 
 #planet-label-layer.cinematic-hidden {
