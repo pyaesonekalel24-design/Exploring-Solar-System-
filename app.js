@@ -4277,30 +4277,61 @@ function animate() {
   );
 }
 
-
 /* =========================================================
    START GAME
    ========================================================= */
 
 function startGame() {
-  if (
-    gameStarted
-  ) {
+  if (gameStarted) {
     return;
   }
 
-  gameStarted =
-    true;
+  gameStarted = true;
 
-  startScreen.hidden =
-    true;
+  startScreen.hidden = true;
+  gameUI.hidden = false;
 
-  gameUI.hidden =
-    false;
+  const loadingScreen =
+    document.getElementById("loading-screen");
 
-  renderer.domElement.focus();
+  const loadingText =
+    document.getElementById("loading-text");
+
+  const loadingProgress =
+    document.getElementById("loading-progress");
+
+  if (
+    loadingScreen &&
+    loadingText &&
+    loadingProgress
+  ) {
+    let progress = 0;
+
+    loadingScreen.classList.remove("finished");
+    loadingProgress.style.width = "0%";
+
+    const loadingInterval = setInterval(() => {
+      progress = Math.min(progress + 2, 100);
+
+      loadingProgress.style.width =
+        progress + "%";
+
+      loadingText.textContent =
+        "LOADING... " + progress + "%";
+
+      if (progress >= 100) {
+        clearInterval(loadingInterval);
+
+        setTimeout(() => {
+          loadingScreen.classList.add("finished");
+          renderer.domElement.focus();
+        }, 300);
+      }
+    }, 30);
+  } else {
+    renderer.domElement.focus();
+  }
 }
-
 
 /* =========================================================
    CONTROLS
