@@ -1,5 +1,12 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
 
+import {
+  SOLAR_SYSTEM_SCALE,
+  CHILL_SPEED,
+  SUPERMAN_SPEED,
+  SPEED_ACCELERATION
+} from "./config.js";
+
 const $ = (id) => document.getElementById(id);
 
 const loadingScreen = $("loading-screen");
@@ -123,10 +130,6 @@ function resetCreatorPinch() {
 
 let energy = 100;
 const ENERGY_RECHARGE_RATE = 18;
-
-const CHILL_SPEED = 120;
-const SUPERMAN_SPEED = 750_000;
-const SPEED_ACCELERATION = 450_000;
 
 const speedModes = {
   chill: {
@@ -311,8 +314,6 @@ const KM_PER_AU = 149_597_870.7;
 const GAME_UNITS_PER_KM = 0.001;
 const GAME_UNITS_PER_AU =
   KM_PER_AU * GAME_UNITS_PER_KM;
-
-const SOLAR_SYSTEM_SCALE = 3;
 
 const SECONDS_PER_DAY = 86_400;
 const SIMULATION_TIME_MULTIPLIER = 1;
