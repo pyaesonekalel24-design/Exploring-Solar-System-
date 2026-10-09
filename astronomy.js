@@ -194,3 +194,64 @@ export function getLunarPhaseState(date) {
       dateFromJulianDate(nextNewMoonJD)
   };
 }
+
+
+/* =========================================================
+   EARTH SIDEREAL ROTATION
+   ========================================================= */
+
+const JULIAN_CENTURY_DAYS = 36_525;
+
+function normalizeDegrees(angle) {
+  angle %= 360;
+
+  if (angle < 0) {
+    angle += 360;
+  }
+
+  return angle;
+}
+
+function normalizeRadians(angle) {
+  const fullTurn = Math.PI * 2;
+
+  angle %= fullTurn;
+
+  if (angle < 0) {
+    angle += fullTurn;
+  }
+
+  return angle;
+}
+
+export function getGreenwichSiderealTimeDegrees(date) {
+  const julianDate =
+    julianDateFromDate(date);
+
+  const centuries =
+    (julianDate - 2451545.0) /
+    JULIAN_CENTURY_DAYS;
+
+  const gmst =
+    280.46061837 +
+    360.98564736629 *
+      (julianDate - 2451545.0) +
+    0.000387933 *
+      centuries *
+      centuries -
+    (centuries * centuries * centuries) /
+      38_710_000;
+
+  return normalizeDegrees(gmst);
+}
+
+export function getEarthRotationAngleRadians(date) {
+  const siderealDegrees =
+    getGreenwichSiderealTimeDegrees(date);
+
+  return normalizeRadians(
+    THREE.MathUtils.degToRad(
+      siderealDegrees + 90
+    )
+  );
+}
