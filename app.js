@@ -4301,36 +4301,43 @@ function startGame() {
     document.getElementById("loading-progress");
 
   if (
-    loadingScreen &&
-    loadingText &&
-    loadingProgress
+    !loadingScreen ||
+    !loadingText ||
+    !loadingProgress
   ) {
-    let progress = 0;
-
-    loadingScreen.classList.remove("finished");
-    loadingProgress.style.width = "0%";
-
-    const loadingInterval = setInterval(() => {
-      progress = Math.min(progress + 2, 100);
-
-      loadingProgress.style.width =
-        progress + "%";
-
-      loadingText.textContent =
-        "LOADING... " + progress + "%";
-
-      if (progress >= 100) {
-        clearInterval(loadingInterval);
-
-        setTimeout(() => {
-          loadingScreen.classList.add("finished");
-          renderer.domElement.focus();
-        }, 300);
-      }
-    }, 30);
-  } else {
     renderer.domElement.focus();
+    return;
   }
+
+  loadingScreen.classList.remove("finished");
+
+  let progress = 0;
+
+  loadingText.textContent = "LOADING... 0%";
+  loadingProgress.style.width = "0%";
+
+  function updateLoading() {
+    progress = Math.min(progress + 2, 100);
+
+    loadingText.textContent =
+      "LOADING... " + progress + "%";
+
+    loadingProgress.style.width =
+      progress + "%";
+
+    if (progress < 100) {
+      requestAnimationFrame(() => {
+        setTimeout(updateLoading, 30);
+      });
+    } else {
+      setTimeout(() => {
+        loadingScreen.classList.add("finished");
+        renderer.domElement.focus();
+      }, 300);
+    }
+  }
+
+  setTimeout(updateLoading, 100);
 }
 
 /* =========================================================
