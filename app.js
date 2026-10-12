@@ -3032,13 +3032,13 @@ function createSolarSystem() {
      INITIAL CAMERA
      ======================================================= */
   
-  camera.position.set(
+camera.position.set(
     0,
     0,
     1200000 *
       SOLAR_SYSTEM_SCALE
-   SPAWN_HEIGHT_ANGLE: 57,        // degrees 
-    );
+  );
+
 
   updateSunWorldPosition();
 
