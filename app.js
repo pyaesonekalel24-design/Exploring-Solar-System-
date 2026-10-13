@@ -1996,8 +1996,15 @@ function createOrbitLine(
 }
 
 
+
 /* =========================================================
    SATURN RING GEOMETRY
+   =========================================================
+   
+   The Solar System Scope Saturn ring texture is a radial
+   slice. Standard RingGeometry uses planar UVs, so we build
+   our own UVs: horizontal texture coordinate = ring radius.
+   This makes the texture bands actually follow the rings.
    ========================================================= */
 
 function createSaturnRingGeometry(
@@ -2102,10 +2109,10 @@ function createSaturnRingGeometry(
     ] =
       1;
 
-  uvs[
-  vertexIndex * 2
-] =
-  0;
+    uvs[
+      vertexIndex * 2
+    ] =
+      0;
 
     uvs[
       vertexIndex * 2 + 1
@@ -2211,6 +2218,7 @@ function createSaturnRingGeometry(
 
   return geometry;
 }
+
 
 /* =========================================================
    LABELS
