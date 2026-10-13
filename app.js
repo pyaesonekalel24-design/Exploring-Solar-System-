@@ -3323,14 +3323,21 @@ function createSolarSystem() {
   /* =======================================================
      INITIAL CAMERA
      ======================================================= */
-  
-camera.position.set(
+
+  camera.position.set(
     0,
     0,
-    1200000 *
+    1000000 *
       SOLAR_SYSTEM_SCALE
   );
 
+  // Face the Sun.
+  camera.lookAt(0, 0, 0);
+
+  // Tilt the view downward by 60 degrees.
+  camera.rotation.order = "YXZ";
+  camera.rotation.x =
+    THREE.MathUtils.degToRad(-60);
 
   updateSunWorldPosition();
 
@@ -3354,8 +3361,6 @@ camera.position.set(
     }
   );
 }
-
-
 /* =========================================================
    SUN VISIBILITY
    ========================================================= */
