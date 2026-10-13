@@ -2618,78 +2618,257 @@ function createPlanet(data) {
      SATURN RINGS
      ======================================================= */
 
-  if (
-    data.hasRings
-  ) {
-    const ringInnerRadius =
-      planetRadius *
-      1.12;
+ 
+if (
+  data.hasRings
+) {
+  // Saturn's ring boundaries, measured in km.
+  // Ratios use this project's Saturn mesh radius:
+  // 58,232 km.
 
-    const ringOuterRadius =
-      planetRadius *
-      2.32;
+  const SATURN_MODEL_RADIUS_KM =
+    58232;
 
-    const ringGeometry =
-      createSaturnRingGeometry(
-        ringInnerRadius,
-        ringOuterRadius,
-        256
-      );
+  const ringInnerRadius =
+    planetRadius *
+    (66900 / SATURN_MODEL_RADIUS_KM);
 
-    const ringMaterial =
-      new THREE.MeshStandardMaterial({
-       color:
-  0xe0d7bd,
-        
-        side:
-          THREE.DoubleSide,
+  const ringOuterRadius =
+    planetRadius *
+    (139826 / SATURN_MODEL_RADIUS_KM);
 
-        transparent:
-          true,
-
-        opacity:
-          0.96,
-
-        roughness:
-          0.96,
-
-        metalness:
-          0,
-
-        depthWrite:
-          false
-      });
-
-    const rings =
-      new THREE.Mesh(
-        ringGeometry,
-        ringMaterial
-      );
-
-    rings.rotation.x =
-      Math.PI / 2;
-
-    planet.add(
-      rings
+  const ringGeometry =
+    createSaturnRingGeometry(
+      ringInnerRadius,
+      ringOuterRadius,
+      512
     );
 
-    loadTextureWithFallback(
-      TEXTURE_URLS.saturnRing,
-      (texture) => {
-        texture.wrapS =
-          THREE.ClampToEdgeWrapping;
+  // Generate a radial colour/opacity texture.
+  // One texture represents all the ring bands;
+  // no individual rock particles are needed.
 
-        texture.wrapT =
-          THREE.RepeatWrapping;
+  const textureWidth = 2048;
+  const textureHeight = 4;
 
-        ringMaterial.alphaMap =
-          texture;
-
-        ringMaterial.needsUpdate =
-          true;
-      }
+  const pixels =
+    new Uint8Array(
+      textureWidth *
+      textureHeight *
+      4
     );
+
+  function getSaturnRingPixel(radiusKm) {
+    let r = 184;
+    let g = 170;
+    let b = 137;
+    let a = 0;
+
+    // D ring: very faint.
+    if (
+      radiusKm >= 66900 &&
+      radiusKm < 74491
+    ) {
+      r = 157;
+      g = 145;
+      b = 121;
+      a = 35;
+    }
+
+    // C ring: darker, translucent inner ring.
+    else if (
+      radiusKm >= 74491 &&
+      radiusKm < 91975
+    ) {
+      r = 153;
+      g = 142;
+      b = 120;
+      a = 105;
+    }
+
+    // B ring: broad and relatively bright.
+    else if (
+      radiusKm >= 91975 &&
+      radiusKm < 117507
+    ) {
+      r = 222;
+      g = 207;
+      b = 171;
+      a = 235;
+    }
+
+    // Cassini Division: a clear dark gap.
+    else if (
+      radiusKm >= 117507 &&
+      radiusKm < 122340
+    ) {
+      r = 75;
+      g = 68;
+      b = 58;
+      a = 12;
+    }
+
+    // A ring: bright, with subtle radial structure.
+    else if (
+      radiusKm >= 122340 &&
+      radiusKm < 136780
+    ) {
+      r = 207;
+      g = 192;
+      b = 158;
+      a = 205;
+    }
+
+    // Encke Gap: narrow gap within the A ring.
+    if (
+      radiusKm >= 133410 &&
+      radiusKm < 133600
+    ) {
+      a = 35;
+    }
+
+    // Outer region and F ring.
+    if (
+      radiusKm >= 136780 &&
+      radiusKm <= 139826
+    ) {
+      r = 174;
+      g = 160;
+      b = 132;
+      a = 75;
+    }
+
+    // Subtle radial variation prevents flat,
+    // perfectly uniform-looking bands.
+    const variation =
+      Math.sin(radiusKm * 0.018) *
+      5 +
+      Math.sin(radiusKm * 0.0047) *
+      4;
+
+    r = Math.max(
+      0,
+      Math.min(255, r + variation)
+    );
+
+    g = Math.max(
+      0,
+      Math.min(255, g + variation)
+    );
+
+    b = Math.max(
+      0,
+      Math.min(255, b + variation)
+    );
+
+    return [r, g, b, a];
   }
+
+  for (
+    let x = 0;
+    x < textureWidth;
+    x++
+  ) {
+    const t =
+      x /
+      (textureWidth - 1);
+
+    const radiusKm =
+      66900 +
+      t *
+      (139826 - 66900);
+
+    const colour =
+      getSaturnRingPixel(radiusKm);
+
+    for (
+      let y = 0;
+      y < textureHeight;
+      y++
+    ) {
+      const index =
+        (y * textureWidth + x) * 4;
+
+      pixels[index] =
+        colour[0];
+
+      pixels[index + 1] =
+        colour[1];
+
+      pixels[index + 2] =
+        colour[2];
+
+      pixels[index + 3] =
+        colour[3];
+    }
+  }
+
+  const ringTexture =
+    new THREE.DataTexture(
+      pixels,
+      textureWidth,
+      textureHeight,
+      THREE.RGBAFormat
+    );
+
+  ringTexture.wrapS =
+    THREE.ClampToEdgeWrapping;
+
+  ringTexture.wrapT =
+    THREE.ClampToEdgeWrapping;
+
+  ringTexture.magFilter =
+    THREE.LinearFilter;
+
+  ringTexture.minFilter =
+    THREE.LinearMipmapLinearFilter;
+
+  ringTexture.generateMipmaps =
+    true;
+
+  ringTexture.colorSpace =
+    THREE.SRGBColorSpace;
+
+  ringTexture.needsUpdate =
+    true;
+
+  const ringMaterial =
+    new THREE.MeshStandardMaterial({
+      map: ringTexture,
+
+      side:
+        THREE.DoubleSide,
+
+      transparent:
+        true,
+
+      opacity:
+        0.92,
+
+      roughness:
+        0.96,
+
+      metalness:
+        0,
+
+      depthWrite:
+        false
+    });
+
+  const rings =
+    new THREE.Mesh(
+      ringGeometry,
+      ringMaterial
+    );
+
+  rings.rotation.x =
+    Math.PI / 2;
+
+  planet.add(
+    rings
+  );
+}
+
 
 
   /* =======================================================
