@@ -2003,16 +2003,31 @@ function createOrbitLine(
 function createSaturnRingGeometry(
   innerRadius,
   outerRadius,
-  segments
+  segments = 256
 ) {
+  const vertexCount =
+    (segments + 1) * 2;
+
   const positions =
-    [];
+    new Float32Array(
+      vertexCount * 3
+    );
+
+  const normals =
+    new Float32Array(
+      vertexCount * 3
+    );
 
   const uvs =
-    [];
+    new Float32Array(
+      vertexCount * 2
+    );
 
   const indices =
     [];
+
+  let vertexIndex =
+    0;
 
   for (
     let i = 0;
@@ -2037,27 +2052,109 @@ function createSaturnRingGeometry(
         angle
       );
 
-    positions.push(
+    const v =
+      i /
+      segments;
+
+    const innerX =
       innerRadius *
-        cos,
-      0,
+      cos;
+
+    const innerY =
       innerRadius *
-        sin,
+      sin;
 
+    const outerX =
       outerRadius *
-        cos,
-      0,
+      cos;
+
+    const outerY =
       outerRadius *
-        sin
-    );
+      sin;
 
-    uvs.push(
-      0,
-      i / segments,
+    positions[
+      vertexIndex * 3
+    ] =
+      innerX;
 
-      1,
-      i / segments
-    );
+    positions[
+      vertexIndex * 3 + 1
+    ] =
+      innerY;
+
+    positions[
+      vertexIndex * 3 + 2
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3 + 1
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3 + 2
+    ] =
+      1;
+
+    uvs[
+      vertexIndex * 2
+    ] =
+      0.015;
+
+    uvs[
+      vertexIndex * 2 + 1
+    ] =
+      v;
+
+    vertexIndex += 1;
+
+    positions[
+      vertexIndex * 3
+    ] =
+      outerX;
+
+    positions[
+      vertexIndex * 3 + 1
+    ] =
+      outerY;
+
+    positions[
+      vertexIndex * 3 + 2
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3 + 1
+    ] =
+      0;
+
+    normals[
+      vertexIndex * 3 + 2
+    ] =
+      1;
+
+    uvs[
+      vertexIndex * 2
+    ] =
+      1;
+
+    uvs[
+      vertexIndex * 2 + 1
+    ] =
+      v;
+
+    vertexIndex += 1;
   }
 
   for (
@@ -2084,15 +2181,23 @@ function createSaturnRingGeometry(
 
   geometry.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute(
+    new THREE.BufferAttribute(
       positions,
       3
     )
   );
 
   geometry.setAttribute(
+    "normal",
+    new THREE.BufferAttribute(
+      normals,
+      3
+    )
+  );
+
+  geometry.setAttribute(
     "uv",
-    new THREE.Float32BufferAttribute(
+    new THREE.BufferAttribute(
       uvs,
       2
     )
@@ -2102,11 +2207,10 @@ function createSaturnRingGeometry(
     indices
   );
 
-  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
 
   return geometry;
 }
-
 
 /* =========================================================
    LABELS
@@ -2525,9 +2629,9 @@ function createPlanet(data) {
 
     const ringMaterial =
       new THREE.MeshStandardMaterial({
-        color:
-          0xd8c89f,
-
+       color:
+  0xe0d7bd,
+        
         side:
           THREE.DoubleSide,
 
@@ -2535,7 +2639,7 @@ function createPlanet(data) {
           true,
 
         opacity:
-          0.92,
+          0.96,
 
         roughness:
           0.96,
