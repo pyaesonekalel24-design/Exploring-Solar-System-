@@ -2102,10 +2102,10 @@ function createSaturnRingGeometry(
     ] =
       1;
 
-    uvs[
-      vertexIndex * 2
-    ] =
-      0.015;
+  uvs[
+  vertexIndex * 2
+] =
+  0;
 
     uvs[
       vertexIndex * 2 + 1
