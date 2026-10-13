@@ -64,13 +64,13 @@ let uiMenuVisible = false;
 
 let planetLabelsVisible = true;
 
-let orbitLinesVisible = true;
+let orbitLinesVisible = false;
 
 let distanceVisible = true;
 
 let cinematicMode = false;
 
-let currentSpeedMode = "chill";
+let currentSpeedMode = "superman";
 
 
 /* =========================================================
