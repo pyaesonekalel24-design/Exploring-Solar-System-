@@ -3324,12 +3324,13 @@ function createSolarSystem() {
      INITIAL CAMERA
      ======================================================= */
 
-  camera.position.set(
-    0,
-    0,
-    1000000 *
-      SOLAR_SYSTEM_SCALE
-  );
+ camera.position.set(
+  0,
+  300000 *
+    SOLAR_SYSTEM_SCALE,
+  1000000 *
+    SOLAR_SYSTEM_SCALE
+);
 
   // Face the Sun.
   camera.lookAt(0, 0, 0);
