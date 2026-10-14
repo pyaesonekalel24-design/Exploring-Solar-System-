@@ -64,7 +64,7 @@ let uiMenuVisible = false;
 
 let planetLabelsVisible = true;
 
-let orbitLinesVisible = false;
+let orbitLinesVisible = true;
 
 let distanceVisible = true;
 
