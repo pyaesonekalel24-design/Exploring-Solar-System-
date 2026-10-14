@@ -64,7 +64,7 @@ let uiMenuVisible = false;
 
 let planetLabelsVisible = true;
 
-let orbitLinesVisible = true;
+let orbitLinesVisible = false;
 
 let distanceVisible = true;
 
@@ -4570,17 +4570,35 @@ function animate() {
     );
   }
 
- renderer.render(
-  scene,
-  camera
-);
+  renderer.render(
+    scene,
+    camera
+  );
+}
 
 
 /* =========================================================
    START GAME
    ========================================================= */
 
--
+function startGame() {
+  if (
+    gameStarted
+  ) {
+    return;
+  }
+
+  gameStarted =
+    true;
+
+  startScreen.hidden =
+    true;
+
+  gameUI.hidden =
+    false;
+
+  renderer.domElement.focus();
+}
 
 
 /* =========================================================
