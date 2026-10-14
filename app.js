@@ -3332,14 +3332,19 @@ function createSolarSystem() {
     SOLAR_SYSTEM_SCALE
 );
 
-  // Face the Sun.
-  camera.lookAt(0, 0, 0);
+ // Face the Sun.
+camera.lookAt(0, 0, 0);
 
-  // Tilt the view downward by 60 degrees.
-  camera.rotation.order = "YXZ";
-  camera.rotation.x =
-    THREE.MathUtils.degToRad(-60);
+// Tilt the view downward by 60 degrees.
+camera.rotation.order = "YXZ";
+camera.rotation.x =
+  THREE.MathUtils.degToRad(-60);
 
+// Keep the camera controls synchronized
+// with the final spawn orientation.
+pitch = camera.rotation.x;
+yaw = camera.rotation.y;
+  
   updateSunWorldPosition();
 
   updateSpeedButtons();
