@@ -4575,10 +4575,7 @@ function animate() {
     camera
   );
 }
-renderer.render(
-  scene,
-  camera
-);
+
 
 /* =========================================================
    START GAME
