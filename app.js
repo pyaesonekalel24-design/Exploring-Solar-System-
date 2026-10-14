@@ -64,7 +64,7 @@ let uiMenuVisible = false;
 
 let planetLabelsVisible = true;
 
-let orbitLinesVisible = false;
+let orbitLinesVisible = true;
 
 let distanceVisible = true;
 
@@ -4581,24 +4581,7 @@ function animate() {
    START GAME
    ========================================================= */
 
-function startGame() {
-  if (
-    gameStarted
-  ) {
-    return;
-  }
-
-  gameStarted =
-    true;
-
-  startScreen.hidden =
-    true;
-
-  gameUI.hidden =
-    false;
-
-  renderer.domElement.focus();
-}
+-
 
 
 /* =========================================================
