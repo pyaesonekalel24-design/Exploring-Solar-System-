@@ -4570,9 +4570,40 @@ function animate() {
     );
   }
 
-  renderer.render(
-    scene,
-    camera
+ renderer.render(
+  scene,
+  camera
+);
+
+if (
+  !window.__solarRenderChecked
+) {
+  window.__solarRenderChecked =
+    true;
+
+  console.log(
+    "First render:",
+    {
+      canvasWidth:
+        renderer.domElement.width,
+
+      canvasHeight:
+        renderer.domElement.height,
+
+      cameraPosition:
+        camera.position.toArray(),
+
+      cameraDirection:
+        camera.getWorldDirection(
+          new THREE.Vector3()
+        ).toArray(),
+
+      planetCount:
+        solarPlanets.length,
+
+      rendererInfo:
+        renderer.info.render
+    }
   );
 }
 
