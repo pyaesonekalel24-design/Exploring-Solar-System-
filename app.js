@@ -47,7 +47,10 @@ let stars = null;
 
 let sunSprite = null;
 
-let sunLight = null;
+
+let sunLight = null; 
+let hemisphereLight = null;
+
 
 let sunMesh = null;
 
@@ -1546,12 +1549,13 @@ function setDistanceVisible(
 }
 
 
-function setCinematicMode(
-  enabled
-) {
-  cinematicMode =
-    enabled;
+function setCinematicMode(enabled) {
+  cinematicMode = enabled;
 
+  if (hemisphereLight) {
+    hemisphereLight.intensity =
+      cinematicMode ? 0.08 : 0.2;
+  }
   if (
     cinematicMode
   ) {
@@ -3104,13 +3108,19 @@ function createSolarSystem() {
    * Low ambient fill keeps the night side readable without
    * washing out the actual direction of sunlight.
    */
-  scene.add(
-    new THREE.HemisphereLight(
-      0x8ea6d4,
-      0x16111c,
-      0.08
-    )
+ 
+hemisphereLight =
+  new THREE.HemisphereLight(
+    0x8ea6d4,
+    0x16111c,
+    0.08
   );
+
+hemisphereLight.intensity =
+  cinematicMode ? 0.08 : 0.2;
+
+scene.add(hemisphereLight);
+
 
   /*
    * The Sun is the actual solar-system light source.
