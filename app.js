@@ -3338,7 +3338,7 @@ camera.lookAt(0, 0, 0);
 // Tilt the view downward by 60 degrees.
 camera.rotation.order = "YXZ";
 camera.rotation.x =
-  THREE.MathUtils.degToRad(-60);
+  THREE.MathUtils.degToRad(-20);
 
 // Keep the camera controls synchronized
 // with the final spawn orientation.
