@@ -66,7 +66,7 @@ let planetLabelsVisible = true;
 
 let orbitLinesVisible = true;
 
-let distanceVisible = true;
+let distanceVisible = false;
 
 let cinematicMode = false;
 
