@@ -2624,6 +2624,32 @@ function createPlanet(data) {
     );
   }
 
+  /* =======================================================
+   MARS DETAIL
+   ======================================================= */
+
+if (
+  data.name ===
+  "Mars"
+) {
+  loadTextureWithFallback(
+    TEXTURE_URLS.mars,
+    (texture) => {
+      material.map =
+        texture;
+
+      material.color.set(
+        0xffffff
+      );
+
+      material.roughness =
+        0.97;
+
+      material.needsUpdate =
+        true;
+    }
+  );
+}
 
   /* =======================================================
      SATURN RINGS
