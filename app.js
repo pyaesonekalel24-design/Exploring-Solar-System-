@@ -500,8 +500,26 @@ function loadTextureWithFallback(
 
         undefined,
 
-        () => {
+               (error) => {
+          console.error(
+            "Texture failed to load:",
+            url,
+            error
+          );
+
           attemptIndex += 1;
+
+          if (
+            attemptIndex >=
+            urls.length
+          ) {
+            console.error(
+              "All texture URLs failed:",
+              urls
+            );
+
+            return;
+          }
 
           attempt();
         }
