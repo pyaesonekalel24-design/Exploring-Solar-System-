@@ -4200,53 +4200,16 @@ function updateOrbits(
         -moonMesh.position.z
       );
 
-    moonSunDirection
-      .subVectors(
-        sunPosition,
-        moonWorldPosition
-      )
-      .normalize();
-
-    const earthWorldPosition =
-      moonPivot.parent
-        ? moonPivot.parent.getWorldPosition(
-            collisionCenter
-          )
-        : collisionCenter.set(
-            0,
-            0,
-            0
-          );
-
-    const moonToEarth =
-      new THREE.Vector3()
-        .subVectors(
-          earthWorldPosition,
-          moonWorldPosition
-        )
-        .normalize();
-
+   
     /*
-     * Physical illumination check from the actual three-body
-     * geometry.
+     * Illumination stays linked to the
+     * host-date-based lunar phase model.
+     *
+     * The 3D geometry calculation was removed
+     * because the simplified Moon orbit is not
+     * yet a physically consistent ephemeris.
      */
-    const physicalPhaseAngle =
-      Math.acos(
-        THREE.MathUtils.clamp(
-          moonSunDirection.dot(
-            moonToEarth
-          ),
-          -1,
-          1
-        )
-      );
 
-    moonIlluminationFraction =
-      (1 -
-        Math.cos(
-          physicalPhaseAngle
-        )) *
-      0.5;
   }
 }
 
