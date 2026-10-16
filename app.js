@@ -427,10 +427,17 @@ const TEXTURE_URLS = {
       "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_saturn.jpg"
     ],
 
+ 
   saturnRing:
     [
       "https://www.solarsystemscope.com/textures/download/2k_saturn_ring_alpha.png",
       "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_saturn_ring_alpha.png"
+    ],
+
+  mars:
+    [
+      "https://www.solarsystemscope.com/textures/download/2k_mars.jpg",
+      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_mars.jpg"
     ]
 };
 
