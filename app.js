@@ -863,183 +863,34 @@ function solveKeplerMeanAnomaly(
 }
 
 
+
 function getMoonEclipticPosition(
   daysSinceJ2000,
   phaseAngle,
   sunEclipticLongitude
 ) {
-  const ascendingNode =
-    THREE.MathUtils.degToRad(
-      normalizeDegrees(
-        MOON_NODE_AT_J2000_DEGREES +
-        MOON_NODE_RATE_DEGREES_PER_DAY *
-        daysSinceJ2000
-      )
-    );
-
-  const argumentOfPerigee =
-    THREE.MathUtils.degToRad(
-      normalizeDegrees(
-        MOON_PERIGEE_AT_J2000_DEGREES +
-        MOON_PERIGEE_RATE_DEGREES_PER_DAY *
-        daysSinceJ2000
-      )
-    );
-
-  const meanAnomaly =
-    THREE.MathUtils.degToRad(
-      normalizeDegrees(
-        MOON_MEAN_ANOMALY_AT_J2000_DEGREES +
-        MOON_MEAN_MOTION_DEGREES_PER_DAY *
-        daysSinceJ2000
-      )
-    );
-
-  const eccentricAnomaly =
-    solveKeplerMeanAnomaly(
-      meanAnomaly,
-      MOON_ECCENTRICITY
-    );
-
-  const semiMajorAxis =
-    MOON_EARTH_RADIUS_RATIO;
-
-  const xOrbital =
-    semiMajorAxis *
-    (
-      Math.cos(
-        eccentricAnomaly
-      ) -
-      MOON_ECCENTRICITY
-    );
-
-  const yOrbital =
-    semiMajorAxis *
-    Math.sqrt(
-      1 -
-      MOON_ECCENTRICITY *
-        MOON_ECCENTRICITY
-    ) *
-    Math.sin(
-      eccentricAnomaly
-    );
-
-  const xPerifocal =
-    xOrbital *
-      Math.cos(
-        argumentOfPerigee
-      ) -
-    yOrbital *
-      Math.sin(
-        argumentOfPerigee
-      );
-
-  const yPerifocal =
-    xOrbital *
-      Math.sin(
-        argumentOfPerigee
-      ) +
-    yOrbital *
-      Math.cos(
-        argumentOfPerigee
-      );
-
-  const cosNode =
-    Math.cos(
-      ascendingNode
-    );
-
-  const sinNode =
-    Math.sin(
-      ascendingNode
-    );
-
-  const cosInclination =
-    Math.cos(
-      THREE.MathUtils.degToRad(
-        MOON_INCLINATION_DEGREES
-      )
-    );
-
-  const sinInclination =
-    Math.sin(
-      THREE.MathUtils.degToRad(
-        MOON_INCLINATION_DEGREES
-      )
-    );
-
-  const rawX =
-    xPerifocal *
-      cosNode -
-    yPerifocal *
-      sinNode *
-      cosInclination;
-
-  const rawY =
-    yPerifocal *
-    sinInclination;
-
-  const rawZ =
-    xPerifocal *
-      sinNode +
-    yPerifocal *
-      cosNode *
-      cosInclination;
-
-  const rawDistance =
-    Math.sqrt(
-      rawX * rawX +
-      rawY * rawY +
-      rawZ * rawZ
-    );
-
-  const rawLatitude =
-    Math.asin(
-      THREE.MathUtils.clamp(
-        rawY /
-          rawDistance,
-        -1,
-        1
-      )
-    );
-
   /*
-   * The phase equation controls the Moon's longitude relative
-   * to the Sun, while the orbital model supplies realistic
-   * distance and inclination.
+   * Simplified circular Moon orbit.
+   * Lunar phase follows the host device's date.
    */
+
   const targetLongitude =
     sunEclipticLongitude +
     phaseAngle;
 
   const distance =
-    rawDistance *
-    EARTH_GAME_RADIUS;
+    MOON_ORBIT_RADIUS;
 
   return new THREE.Vector3(
     distance *
-      Math.cos(
-        rawLatitude
-      ) *
-      Math.cos(
-        targetLongitude
-      ),
+      Math.cos(targetLongitude),
+
+    0,
 
     distance *
-      Math.sin(
-        rawLatitude
-      ),
-
-    distance *
-      Math.cos(
-        rawLatitude
-      ) *
-      Math.sin(
-        targetLongitude
-      )
+      Math.sin(targetLongitude)
   );
 }
-
 
 function updateAstronomicalClock() {
   astronomicalDate =
