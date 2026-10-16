@@ -1554,7 +1554,7 @@ function setCinematicMode(enabled) {
 
   if (hemisphereLight) {
     hemisphereLight.intensity =
-      cinematicMode ? 0.08 : 0.2;
+      cinematicMode ? 0.08 : 0.6;
   }
   if (
     cinematicMode
