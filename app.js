@@ -668,6 +668,7 @@ let astronomicalDate =
   new Date();
 
 let moonMesh = null;
+let moonLabelRecord = null;
 
 let moonOrbitalPosition =
   new THREE.Vector3();
@@ -2867,6 +2868,26 @@ moonPivot.add(
     sunOccluders.push(
       moonMesh
     );
+    
+    /* MOON LABEL + CREATOR TELEPORT */
+
+moonLabelRecord = {
+  name: "Moon",
+
+  planet: moonMesh,
+
+  label: null,
+
+  labelDistance: null,
+
+  radius: MOON_RADIUS
+};
+
+moonLabelRecord.label =
+  createLabel(
+    "Moon",
+    moonLabelRecord
+  );
   }
 
 
@@ -4396,11 +4417,18 @@ function teleportToPlanet(
    LABEL UPDATE
    ========================================================= */
 
+
 function updateLabels() {
-  for (
-    const planetData of
-      solarPlanets
+  function updateSingleLabel(
+    planetData
   ) {
+    if (
+      !planetData ||
+      !planetData.label
+    ) {
+      return;
+    }
+
     if (
       !planetLabelsVisible ||
       cinematicMode
@@ -4408,14 +4436,12 @@ function updateLabels() {
       planetData.label.style.opacity =
         "0";
 
-      continue;
+      return;
     }
 
-    planetData
-      .planet
-      .getWorldPosition(
-        tempWorld
-      );
+    planetData.planet.getWorldPosition(
+      tempWorld
+    );
 
     const distanceFromCamera =
       camera.position.distanceTo(
@@ -4437,12 +4463,8 @@ function updateLabels() {
     }
 
     tempProjected
-      .copy(
-        tempWorld
-      )
-      .project(
-        camera
-      );
+      .copy(tempWorld)
+      .project(camera);
 
     const visible =
       tempProjected.z > -1 &&
@@ -4452,38 +4474,45 @@ function updateLabels() {
       tempProjected.y > -1.1 &&
       tempProjected.y < 1.1;
 
-    if (
-      !visible
-    ) {
+    if (!visible) {
       planetData.label.style.opacity =
         "0";
 
-      continue;
+      return;
     }
 
     planetData.label.style.left =
       `${
         (
-          tempProjected.x *
-            0.5 +
+          tempProjected.x * 0.5 +
           0.5
-        ) *
-        window.innerWidth
+        ) * window.innerWidth
       }px`;
 
     planetData.label.style.top =
       `${
         (
-          -tempProjected.y *
-            0.5 +
+          -tempProjected.y * 0.5 +
           0.5
-        ) *
-        window.innerHeight
+        ) * window.innerHeight
       }px`;
 
     planetData.label.style.opacity =
       "1";
   }
+
+  for (
+    const planetData of solarPlanets
+  ) {
+    updateSingleLabel(
+      planetData
+    );
+  }
+
+  // Update the Moon independently.
+  updateSingleLabel(
+    moonLabelRecord
+  );
 }
 
 
