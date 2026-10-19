@@ -4185,7 +4185,43 @@ function updateOrbits(
       moonOrbitalPosition.y,
       -moonOrbitalPosition.z
     );
+    
+    /**TEMP MOON POSITION DIAGNOSTIC */
+    if (
+      window.debugMoonPosition
+    ) {
+      scene.updateMatrixWorld(true);
 
+      const earthWorld =
+        new THREE.Vector3();
+
+      const moonWorld =
+        new THREE.Vector3();
+
+      const earthData =
+        solarPlanets.find(
+          (p) => p.name === "Earth"
+        );
+
+      if (earthData) {
+        earthData.planet.getWorldPosition(
+          earthWorld
+        );
+
+        moonMesh.getWorldPosition(
+          moonWorld
+        );
+
+        console.log(
+          "MOON RELATIVE TO EARTH:",
+          {
+            x: +(moonWorld.x - earthWorld.x).toFixed(3),
+            y: +(moonWorld.y - earthWorld.y).toFixed(3),
+            z: +(moonWorld.z - earthWorld.z).toFixed(3)
+          }
+        );
+      }
+    }
     const moonWorldPosition =
       moonMesh.getWorldPosition(
         tempWorld
