@@ -1458,6 +1458,20 @@ function setCinematicMode(enabled) {
     }
   }
 
+  if (moonPivot) {
+    const moonOrbitLine =
+      moonPivot.children.find(
+        (child) =>
+          child.isLineLoop
+      );
+
+    if (moonOrbitLine) {
+      moonOrbitLine.visible =
+        orbitLinesVisible &&
+        !cinematicMode;
+    }
+  }
+
   gameUI.classList.toggle(
     "cinematic-mode",
     cinematicMode
