@@ -1386,12 +1386,26 @@ function setOrbitLinesVisible(
   orbitLinesVisible =
     visible;
 
-  for (
+   for (
     const planetData of
       solarPlanets
   ) {
     if (planetData.orbitLine) {
       planetData.orbitLine.visible =
+        orbitLinesVisible &&
+        !cinematicMode;
+    }
+  }
+
+  if (moonPivot) {
+    const moonOrbitLine =
+      moonPivot.children.find(
+        (child) =>
+          child.isLineLoop
+      );
+
+    if (moonOrbitLine) {
+      moonOrbitLine.visible =
         orbitLinesVisible &&
         !cinematicMode;
     }
