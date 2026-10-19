@@ -2784,12 +2784,30 @@ if (
   if (
     data.hasMoon
   ) {
-    moonPivot =
-      new THREE.Group();
+   
+moonPivot =
+  new THREE.Group();
 
-    orbitalBodyGroup.add(
-      moonPivot
-    );
+orbitalBodyGroup.add(
+  moonPivot
+);
+
+/* MOON ORBIT LINE */
+
+const moonOrbitLine =
+  createOrbitLine(
+    MOON_ORBIT_RADIUS,
+    0,
+    0x8c96a8
+  );
+
+moonOrbitLine.visible =
+  orbitLinesVisible;
+
+moonPivot.add(
+  moonOrbitLine
+);
+
 
     moonMesh =
       new THREE.Mesh(
