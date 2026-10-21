@@ -242,32 +242,23 @@ let energy = 100;
 
 const ENERGY_RECHARGE_RATE = 18;
 
-
 /* =========================================================
    SPEED SYSTEM
    ========================================================= */
 
 const speedModes = {
   chill: {
-    speed: CHILL_SPEED,
-    drainRate: 0
+    speed: CHILL_SPEED
   },
 
-  superman: {
-    speed: SUPERMAN_SPEED,
-    drainRate: 10
-  },
-
-  creator: {
-    speed: CHILL_SPEED,
-    drainRate: 0
+  lightspeed: {
+    speed: SUPERMAN_SPEED
   }
 };
 
 
 let currentMovementSpeed =
   CHILL_SPEED;
-
 
 /* =========================================================
    INPUT
@@ -1140,68 +1131,45 @@ function rebaseSolarSystemIfNeeded() {
    SPEED UI
    ========================================================= */
 
+
 function updateSpeedButtons() {
   document
-    .querySelectorAll(
-      "[data-speed]"
-    )
-    .forEach(
-      (button) => {
-        const selected =
-          button.dataset.speed ===
-          currentSpeedMode;
+    .querySelectorAll("[data-speed]")
+    .forEach((button) => {
+      const selected =
+        button.dataset.speed === currentSpeedMode;
 
-        button.classList.toggle(
-          "is-selected",
-          selected
-        );
+      button.classList.toggle(
+        "is-selected",
+        selected
+      );
 
-        button.setAttribute(
-          "aria-pressed",
-          String(selected)
-        );
-      }
-    );
+      button.setAttribute(
+        "aria-pressed",
+        String(selected)
+      );
+    });
 
   gameUI.classList.toggle(
     "superman-mode",
-    currentSpeedMode ===
-      "superman"
+    currentSpeedMode === "lightspeed"
   );
-
-  updateCreatorLabelMode();
 }
 
 
 function setSpeedMode(mode) {
-  if (
-    !speedModes[mode]
-  ) {
+  if (!speedModes[mode]) {
     return;
   }
 
-  if (
-    energy <= 0 &&
-    mode === "superman"
-  ) {
-    mode = "chill";
-  }
+  currentSpeedMode = mode;
 
-  currentSpeedMode =
-    mode;
-
-  if (
-    mode === "chill" ||
-    mode === "creator"
-  ) {
-    currentMovementSpeed =
-      CHILL_SPEED;
+  if (mode === "chill") {
+    currentMovementSpeed = CHILL_SPEED;
   }
 
   updateSpeedButtons();
-  updateEnergyDisplay();
 }
-
 
 function updateCreatorLabelMode() {
   labelLayer.classList.toggle(
@@ -1213,106 +1181,36 @@ function updateCreatorLabelMode() {
   );
 }
 
-
-/* =========================================================
-   ENERGY DISPLAY
-   ========================================================= */
-
-function updateEnergyDisplay() {
-  const displayedEnergy =
-    Math.round(
-      energy
-    );
-
-  $("energy-fill").style.width =
-    `${energy}%`;
-
-  $("energy-percent").textContent =
-    `${displayedEnergy}%`;
-
-  $("energy-bar").setAttribute(
-    "aria-valuenow",
-    String(displayedEnergy)
-  );
-
-  if (
-    energy <= 25
-  ) {
-    $("energy-fill").style.backgroundColor =
-      "#ff665f";
-  } else if (
-    energy <= 55
-  ) {
-    $("energy-fill").style.backgroundColor =
-      "#ffd15c";
-  } else {
-    $("energy-fill").style.backgroundColor =
-      "#65e68a";
-  }
-
-  const lowEnergy =
-    currentSpeedMode ===
-      "superman" &&
-    energy < 20;
-
-  gameUI.classList.toggle(
-    "superman-low-energy",
-    lowEnergy
-  );
-}
-
-
 /* =========================================================
    MOVEMENT SPEED
    ========================================================= */
 
-function updateMovementSpeed(
-  deltaTime
-) {
+function updateMovementSpeed(deltaTime) {
   const mode =
-    speedModes[
-      currentSpeedMode
-    ] ||
+    speedModes[currentSpeedMode] ||
     speedModes.chill;
 
-  const targetSpeed =
-    mode.speed;
+  const targetSpeed = mode.speed;
 
-  if (
-    currentSpeedMode ===
-      "chill" ||
-    currentSpeedMode ===
-      "creator"
-  ) {
-    currentMovementSpeed =
-      CHILL_SPEED;
-
+  if (currentSpeedMode === "chill") {
+    currentMovementSpeed = CHILL_SPEED;
     return;
   }
 
   const difference =
-    targetSpeed -
-    currentMovementSpeed;
+    targetSpeed - currentMovementSpeed;
 
   const maximumChange =
-    SPEED_ACCELERATION *
-    deltaTime;
+    SPEED_ACCELERATION * deltaTime;
 
-  if (
-    Math.abs(difference) <=
-    maximumChange
-  ) {
-    currentMovementSpeed =
-      targetSpeed;
-
+  if (Math.abs(difference) <= maximumChange) {
+    currentMovementSpeed = targetSpeed;
     return;
   }
 
   currentMovementSpeed +=
-    Math.sign(difference) *
-    maximumChange;
+    Math.sign(difference) * maximumChange;
 }
-
 
 /* =========================================================
    VISUAL TOGGLES
@@ -3665,44 +3563,6 @@ function updateSunAndEnergy(
   updateEnergyDisplay();
 }
 
-
-/* =========================================================
-   ENERGY DRAIN
-   ========================================================= */
-
-function updateEnergy(
-  deltaTime,
-  isMoving
-) {
-  if (
-    !gameStarted ||
-    !isMoving ||
-    currentSpeedMode !==
-      "superman"
-  ) {
-    return;
-  }
-
-  energy =
-    Math.max(
-      0,
-
-      energy -
-        speedModes.superman
-          .drainRate *
-        deltaTime
-    );
-
-  if (
-    energy === 0
-  ) {
-    setSpeedMode(
-      "chill"
-    );
-  }
-}
-
-
 /* =========================================================
    MOVEMENT
    ========================================================= */
@@ -4481,7 +4341,6 @@ function updateOrbits(
   }
 }
 
-
 /* =========================================================
    CREATOR TELEPORT
    ========================================================= */
@@ -4489,14 +4348,7 @@ function updateOrbits(
 function teleportToPlanet(
   planetData
 ) {
-  if (
-    currentSpeedMode !==
-    "creator"
-  ) {
-    return;
-  }
-
-  planetData
+   planetData
     .planet
     .getWorldPosition(
       tempWorld
@@ -4841,7 +4693,6 @@ function setupControls() {
     );
   }
 
-
   /* =======================================================
      UI MENU
      ======================================================= */
@@ -5050,16 +4901,14 @@ function setupControls() {
           }
         );
 
-        if (
+         if (
           activeTouchPointers.size ===
-          2 &&
-          currentSpeedMode ===
-            "creator"
+          2
         ) {
           beginCreatorPinch();
           return;
         }
-
+        
         if (
           activeTouchPointers.size >
           1
@@ -5118,11 +4967,9 @@ function setupControls() {
           }
         );
 
-        if (
+               if (
           activeTouchPointers.size ===
-            2 &&
-          currentSpeedMode ===
-            "creator"
+          2
         ) {
           updateCreatorPinch();
           return;
