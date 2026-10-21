@@ -2563,6 +2563,82 @@ if (
     }
   );
 }
+  
+/* =======================================================
+   MERCURY DETAIL
+   ======================================================= */
+
+if (
+  data.name ===
+  "Mercury"
+) {
+  loadTextureWithFallback(
+    TEXTURE_URLS.mercury,
+    (texture) => {
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.roughness = 0.96;
+      material.needsUpdate = true;
+    }
+  );
+}
+
+/* =======================================================
+   VENUS DETAIL
+   ======================================================= */
+
+if (
+  data.name ===
+  "Venus"
+) {
+  loadTextureWithFallback(
+    TEXTURE_URLS.venus,
+    (texture) => {
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.roughness = 0.96;
+      material.needsUpdate = true;
+    }
+  );
+}
+
+/* =======================================================
+   URANUS DETAIL
+   ======================================================= */
+
+if (
+  data.name ===
+  "Uranus"
+) {
+  loadTextureWithFallback(
+    TEXTURE_URLS.uranus,
+    (texture) => {
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.roughness = 0.96;
+      material.needsUpdate = true;
+    }
+  );
+}
+
+/* =======================================================
+   NEPTUNE DETAIL
+   ======================================================= */
+
+if (
+  data.name ===
+  "Neptune"
+) {
+  loadTextureWithFallback(
+    TEXTURE_URLS.neptune,
+    (texture) => {
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.roughness = 0.96;
+      material.needsUpdate = true;
+    }
+  );
+}
 
   /* =======================================================
      SATURN RINGS
