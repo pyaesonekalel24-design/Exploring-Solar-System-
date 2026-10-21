@@ -1043,3 +1043,52 @@ backdrop-filter: none;
     transition: none;
   }
 }
+
+/* =======================================================
+   SUN LENS FLARE
+   ======================================================= */
+
+#sun-lens-flare {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(
+      circle,
+      rgba(255, 230, 160, 0.20) 0%,
+      rgba(255, 170, 60, 0.10) 18%,
+      rgba(255, 100, 20, 0.035) 42%,
+      transparent 70%
+    );
+  mix-blend-mode: screen;
+  transition: opacity 0.15s ease;
+}
+
+#sun-lens-flare::before {
+  content: "";
+  position: absolute;
+  left: -150%;
+  top: 49%;
+  width: 400%;
+  height: 2px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 190, 100, 0.02),
+      rgba(255, 220, 160, 0.22),
+      rgba(255, 190, 100, 0.02),
+      transparent
+    );
+}
+
+#sun-lens-flare.visible {
+  opacity: 1;
+}
