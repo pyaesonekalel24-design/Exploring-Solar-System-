@@ -416,6 +416,10 @@ const TEXTURE_URLS = {
     "./textures/all%20planets%20surface/2k_venus_surface.jpg"
   ],
 
+  venusAtmosphere: [
+  "./textures/all%20planets%20surface/YOUR_VENUS_ATMOSPHERE_FILENAME.jpg"
+],
+
   earth: [
     "./textures/all%20planets%20surface/2k_earth_daymap.jpg"
   ],
