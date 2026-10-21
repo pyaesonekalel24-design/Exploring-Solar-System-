@@ -59,66 +59,30 @@
 
       <div id="helper-ui">
 
-        <!-- ENERGY -->
-        <div
-          id="energy-hud"
-          aria-label="Energy"
-        >
-          <div
-            id="energy-bar"
-            role="progressbar"
-            aria-label="Energy"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow="100"
-          >
-            <div id="energy-fill"></div>
-          </div>
-
-          <span id="energy-percent">100%</span>
-
-          <div
-            id="superman-low-energy"
-            aria-live="polite"
-          >
-            Oh no Superman, you need energy!!
-          </div>
-        </div>
-
-
+       
         <!-- SPEED MODES -->
         <div
           id="speed-panel"
           aria-label="Flying mode"
         >
           <button
-            class="speed-button is-selected"
+            class="speed-button"
             type="button"
             data-speed="chill"
-            aria-pressed="true"
+            aria-pressed="false"
           >
             CHILL
           </button>
 
           <button
-            class="speed-button"
+            class="speed-button is-selected"
             type="button"
-            data-speed="superman"
-            aria-pressed="false"
+            data-speed="lightspeed"
+            aria-pressed="true"
           >
-            SUPERMAN
-          </button>
-
-          <button
-            class="speed-button"
-            type="button"
-            data-speed="creator"
-            aria-pressed="false"
-          >
-            CREATOR
+            LIGHT SPEED
           </button>
         </div>
-
 
         <!-- UI OPTIONS -->
         <div
