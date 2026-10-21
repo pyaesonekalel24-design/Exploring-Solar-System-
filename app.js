@@ -3587,6 +3587,21 @@ function updateSunAndEnergy(
   const state =
     getSunVisibilityState();
 
+  /* =======================================================
+     ANIMATED SOLAR CORONA
+     ======================================================= */
+
+  if (sunGlow) {
+    const time = performance.now() * 0.001;
+
+    const breathing =
+      0.10 +
+      Math.sin(time * 0.8) * 0.025 +
+      Math.sin(time * 1.7) * 0.008;
+
+    sunGlow.material.opacity = breathing;
+  }
+
   if (
     sunSprite
   ) {
