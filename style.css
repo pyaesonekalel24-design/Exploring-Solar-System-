@@ -1074,20 +1074,21 @@ backdrop-filter: none;
 #sun-lens-flare::before {
   content: "";
   position: absolute;
-  left: -150%;
-  top: 49%;
-  width: 400%;
-  height: 2px;
-  background:
-    linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 190, 100, 0.02),
-      rgba(255, 220, 160, 0.22),
-      rgba(255, 190, 100, 0.02),
-      transparent
-    );
+  left: -100%;
+  top: 49.5%;
+  width: 300%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 190, 100, 0.015) 35%,
+    rgba(255, 220, 170, 0.07) 50%,
+    rgba(255, 190, 100, 0.015) 65%,
+    transparent 100%
+  );
+  filter: blur(1px);
 }
+
 
 #sun-lens-flare.visible {
   opacity: 1;
