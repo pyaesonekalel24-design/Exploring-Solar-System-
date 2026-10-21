@@ -1087,3 +1087,26 @@ gap: 6px;
 #sun-lens-flare.visible {
   opacity: 1;
 }
+
+/* Prevent accidental text selection in game controls */
+#game,
+#game canvas,
+#planet-label-layer,
+#planet-label-layer *,
+#controls,
+#controls *,
+#speed-panel,
+#speed-panel *,
+#ui-toggle,
+#north-control,
+#north-control * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+#game canvas,
+#planet-label-layer,
+#planet-label-layer .planet-label {
+  -webkit-tap-highlight-color: transparent;
+}
