@@ -137,14 +137,7 @@ function getPointerDistance(
 
 
 function beginCreatorPinch() {
-  if (
-    currentSpeedMode !==
-    "creator"
-  ) {
-    return;
-  }
-
-  const pointers =
+ const pointers =
     Array.from(
       activeTouchPointers.values()
     );
@@ -171,11 +164,7 @@ function beginCreatorPinch() {
 
 
 function updateCreatorPinch() {
-  if (
-    !creatorPinching ||
-    currentSpeedMode !==
-      "creator"
-  ) {
+   if (!creatorPinching) {
     return;
   }
 
@@ -2125,13 +2114,6 @@ function createLabel(
   label.addEventListener(
     "pointerdown",
     (event) => {
-      if (
-        currentSpeedMode !==
-        "creator"
-      ) {
-        return;
-      }
-
       event.preventDefault();
       event.stopPropagation();
     }
@@ -2140,13 +2122,6 @@ function createLabel(
   label.addEventListener(
     "click",
     (event) => {
-      if (
-        currentSpeedMode !==
-        "creator"
-      ) {
-        return;
-      }
-
       event.preventDefault();
       event.stopPropagation();
 
@@ -4636,6 +4611,28 @@ function setupControls() {
 
   canvas.style.touchAction =
     "none";
+
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      if (!gameStarted) {
+        return;
+      }
+
+      event.preventDefault();
+
+      camera.fov =
+        THREE.MathUtils.clamp(
+          camera.fov +
+            event.deltaY * 0.03,
+          35,
+          90
+        );
+
+      camera.updateProjectionMatrix();
+    },
+    { passive: false }
+  );
 
   const controlButtons =
     document.querySelectorAll(
