@@ -2416,7 +2416,9 @@ function createPlanet(data) {
 
   let cloudMesh =
     null;
-
+  
+let venusAtmosphereMesh = null;
+  
   if (
     data.name ===
     "Earth"
