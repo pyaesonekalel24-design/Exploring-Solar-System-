@@ -73,7 +73,7 @@ let distanceVisible = false;
 
 let cinematicMode = false;
 
-let currentSpeedMode = "superman";
+let currentSpeedMode = "lightspeed";
 
 
 /* =========================================================
@@ -233,15 +233,6 @@ function resetCreatorPinch() {
   dragging = false;
 }
 
-
-/* =========================================================
-   ENERGY
-   ========================================================= */
-
-let energy = 100;
-
-const ENERGY_RECHARGE_RATE = 18;
-
 /* =========================================================
    SPEED SYSTEM
    ========================================================= */
@@ -258,7 +249,7 @@ const speedModes = {
 
 
 let currentMovementSpeed =
-  CHILL_SPEED;
+  SUPERMAN_SPEED;
 
 /* =========================================================
    INPUT
@@ -3376,7 +3367,6 @@ yaw = camera.rotation.y;
 
   updateSpeedButtons();
   updateVisualToggleButtons();
-  updateEnergyDisplay();
 
   window.addEventListener(
     "resize",
@@ -3544,23 +3534,6 @@ function updateSunAndEnergy(
         0;
     }
   }
-
-  if (
-    currentSpeedMode ===
-      "superman" &&
-    state.visible
-  ) {
-    energy =
-      Math.min(
-        100,
-
-        energy +
-          ENERGY_RECHARGE_RATE *
-            deltaTime
-      );
-  }
-
-  updateEnergyDisplay();
 }
 
 /* =========================================================
@@ -4605,12 +4578,7 @@ function animate() {
     );
 
   rebaseSolarSystemIfNeeded();
-
-  updateEnergy(
-    deltaTime,
-    isMoving
-  );
-
+  
   updateSunAndEnergy(
     deltaTime
   );
