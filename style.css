@@ -126,6 +126,7 @@ button {
   z-index: 3;
   inset: 0;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .planet-label {
