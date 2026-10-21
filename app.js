@@ -440,15 +440,15 @@ const TEXTURE_URLS = {
       "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_mars.jpg"
     ],
 
-  sun:
-    [
-      "https://www.solarsystemscope.com/textures/download/2k_sun.jpg"
-    ],
+ sun:
+  [
+    "./textures/all%20planets%20surface/2k_sun.jpg"
+  ],
 
-  moon:
-    [
-      "https://www.solarsystemscope.com/textures/download/2k_moon.jpg"
-    ]
+moon:
+  [
+    "./textures/all%20planets%20surface/2k_moon.jpg"
+  ]
 };
 
 
