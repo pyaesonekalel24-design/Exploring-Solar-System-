@@ -2931,26 +2931,29 @@ moonOrbitLine.visible =
 moonPivot.add(
   moonOrbitLine
 );
+    
+moonMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(
+    MOON_RADIUS,
+    24,
+    16
+  ),
+  new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 1
+  })
+);
 
+loadTextureWithFallback(
+  TEXTURE_URLS.moon,
+  (texture) => {
+    moonMesh.material.map = texture;
+    moonMesh.material.color.set(0xffffff);
+    moonMesh.material.needsUpdate = true;
+  }
+);
 
-    moonMesh =
-      new THREE.Mesh(
-        new THREE.SphereGeometry(
-          MOON_RADIUS,
-          24,
-          16
-        ),
-
-        new THREE.MeshStandardMaterial({
-          color:
-            0xbfc4cf,
-
-          roughness:
-            1
-        })
-      );
-
-    moonMesh.position.set(
+      moonMesh.position.set(
       MOON_ORBIT_RADIUS,
       0,
       0
