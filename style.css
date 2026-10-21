@@ -333,9 +333,9 @@ backdrop-filter: none;
   top: max(20px, env(safe-area-inset-top));
   left: 50%;
 
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 6px;
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 6px;
 
   /*
    * Extra right breathing room prevents the CREATOR button
@@ -407,11 +407,6 @@ backdrop-filter: none;
 .speed-button[data-speed="superman"].is-selected {
   border-color: rgba(145, 201, 255, 0.50);
   background: rgba(33, 91, 145, 0.42);
-}
-
-.speed-button[data-speed="creator"].is-selected {
-  border-color: rgba(217, 167, 255, 0.52);
-  background: rgba(92, 51, 133, 0.42);
 }
 
 
