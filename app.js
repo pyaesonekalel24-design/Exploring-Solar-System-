@@ -402,55 +402,60 @@ const COLLISION_MARGIN =
 const textureLoader =
   new THREE.TextureLoader();
 
+
 const TEXTURE_URLS = {
-  earth:
-    [
-      "https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg",
-      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_earth_daymap.jpg"
-    ],
-
-  earthClouds:
-    [
-      "https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg",
-      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_earth_clouds.jpg"
-    ],
-
-  jupiter:
-    [
-      "https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg",
-      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_jupiter.jpg"
-    ],
-
-  saturn:
-    [
-      "https://www.solarsystemscope.com/textures/download/2k_saturn.jpg",
-      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_saturn.jpg"
-    ],
-
- 
-  saturnRing:
-    [
-      "https://www.solarsystemscope.com/textures/download/2k_saturn_ring_alpha.png",
-      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_saturn_ring_alpha.png"
-    ],
-
-   mars:
-    [
-      "https://www.solarsystemscope.com/textures/download/2k_mars.jpg",
-      "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_mars.jpg"
-    ],
-
- sun:
-  [
+  sun: [
     "./textures/all%20planets%20surface/2k_sun.jpg"
   ],
 
-moon:
-  [
+  mercury: [
+    "./textures/all%20planets%20surface/2k_mercury.jpg"
+  ],
+
+  venus: [
+    "./textures/all%20planets%20surface/2k_venus_surface.jpg"
+  ],
+
+  earth: [
+    "./textures/all%20planets%20surface/2k_earth_daymap.jpg"
+  ],
+
+  earthNight: [
+    "./textures/all%20planets%20surface/2k_earth_nightmap.jpg"
+  ],
+
+  earthClouds: [
+    "./textures/all%20planets%20surface/2k_earth_clouds.jpg"
+  ],
+
+  moon: [
     "./textures/all%20planets%20surface/2k_moon.jpg"
+  ],
+
+  mars: [
+    "./textures/all%20planets%20surface/2k_mars.jpg"
+  ],
+
+  jupiter: [
+    "./textures/all%20planets%20surface/2k_jupiter.jpg"
+  ],
+
+  saturn: [
+    "./textures/all%20planets%20surface/2k_saturn.jpg"
+  ],
+
+  saturnRing: [
+    "./textures/all%20planets%20surface/2k_saturn_ring_alpha.png"
+  ],
+
+  uranus: [
+    "./textures/all%20planets%20surface/2k_uranus.jpg"
+  ],
+
+  neptune: [
+    "./textures/all%20planets%20surface/2k_neptune.jpg"
   ]
 };
-
 
 function configureLoadedTexture(texture) {
   texture.colorSpace =
