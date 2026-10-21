@@ -2607,6 +2607,40 @@ if (
 }
 
 /* =======================================================
+   VENUS ATMOSPHERE
+   ======================================================= */
+
+if (data.name === "Venus") {
+  const venusAtmosphereMaterial =
+    new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+      roughness: 1
+    });
+
+  venusAtmosphereMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(
+      planetRadius * 1.014,
+      sphereSegments,
+      sphereRings
+    ),
+    venusAtmosphereMaterial
+  );
+
+  axialTiltGroup.add(venusAtmosphereMesh);
+
+  loadTextureWithFallback(
+    TEXTURE_URLS.venusAtmosphere,
+    (texture) => {
+      venusAtmosphereMaterial.map = texture;
+      venusAtmosphereMaterial.needsUpdate = true;
+    }
+  );
+}
+
+/* =======================================================
    URANUS DETAIL
    ======================================================= */
 
