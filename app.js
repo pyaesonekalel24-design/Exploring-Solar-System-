@@ -4670,6 +4670,53 @@ function updateLabels() {
    ANIMATION LOOP
    ========================================================= */
 
+/* =======================================================
+   SUN LENS FLARE ELEMENT
+   ======================================================= */
+
+const sunLensFlare = document.createElement("div");
+
+sunLensFlare.id = "sun-lens-flare";
+
+document.body.appendChild(sunLensFlare);
+
+const sunScreenPosition = new THREE.Vector3();
+
+function updateSunLensFlare() {
+  if (!sunMesh || !camera || !renderer) {
+    sunLensFlare.classList.remove("visible");
+    return;
+  }
+
+  sunMesh.getWorldPosition(sunScreenPosition);
+  sunScreenPosition.project(camera);
+
+  const sunIsInFront = sunScreenPosition.z > -1 &&
+                       sunScreenPosition.z < 1;
+
+  const sunIsOnScreen =
+    Math.abs(sunScreenPosition.x) < 1 &&
+    Math.abs(sunScreenPosition.y) < 1;
+
+  if (!sunIsInFront || !sunIsOnScreen) {
+    sunLensFlare.classList.remove("visible");
+    return;
+  }
+
+  const screenX =
+    (sunScreenPosition.x * 0.5 + 0.5) *
+    window.innerWidth;
+
+  const screenY =
+    (-sunScreenPosition.y * 0.5 + 0.5) *
+    window.innerHeight;
+
+  sunLensFlare.style.left = `${screenX}px`;
+  sunLensFlare.style.top = `${screenY}px`;
+
+  sunLensFlare.classList.add("visible");
+}
+
 function animate() {
   requestAnimationFrame(
     animate
@@ -4711,10 +4758,12 @@ function animate() {
     );
   }
 
-  renderer.render(
-    scene,
-    camera
-  );
+ updateSunLensFlare();
+
+renderer.render(
+  scene,
+  camera
+);
 }
 
 
