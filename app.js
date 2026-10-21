@@ -4891,15 +4891,17 @@ function setupControls() {
         return;
       }
 
-      dragging =
-        true;
+    dragging = true;
 
-      lastPointerX =
-        event.clientX;
+console.log(
+  "CAMERA DRAG STARTED",
+  event.pointerType,
+  currentSpeedMode
+);
 
-      lastPointerY =
-        event.clientY;
-
+lastPointerX = event.clientX;
+lastPointerY = event.clientY;
+      
       try {
         canvas.setPointerCapture(
           event.pointerId
