@@ -126,7 +126,6 @@ button {
   z-index: 3;
   inset: 0;
   overflow: hidden;
-  pointer-events: none;
 }
 
 .planet-label {
@@ -178,7 +177,7 @@ backdrop-filter: none;
   letter-spacing: 0.06em;
 }
 
-#planet-label-layer.creator-enabled .planet-label {
+#planet-label-layer .planet-label {
   pointer-events: auto;
   cursor: pointer;
 }
