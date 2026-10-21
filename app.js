@@ -434,10 +434,20 @@ const TEXTURE_URLS = {
       "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_saturn_ring_alpha.png"
     ],
 
-  mars:
+   mars:
     [
       "https://www.solarsystemscope.com/textures/download/2k_mars.jpg",
       "https://cdn.jsdelivr.net/gh/elymas/solar-simulator@main/public/textures/2k_mars.jpg"
+    ],
+
+  sun:
+    [
+      "https://www.solarsystemscope.com/textures/download/2k_sun.jpg"
+    ],
+
+  moon:
+    [
+      "https://www.solarsystemscope.com/textures/download/2k_moon.jpg"
     ]
 };
 
@@ -3126,9 +3136,9 @@ scene.add(hemisphereLight);
         32
       ),
 
-      new THREE.MeshBasicMaterial({
+           new THREE.MeshBasicMaterial({
         color:
-          0xffa928
+          0xffffff
       })
     );
 
@@ -3141,7 +3151,23 @@ scene.add(hemisphereLight);
   solarSystemRoot.add(
     sunMesh
   );
+  
+loadTextureWithFallback(
+  TEXTURE_URLS.sun,
 
+  (texture) => {
+    sunMesh.material.map =
+      texture;
+
+    sunMesh.material.color.set(
+      0xffffff
+    );
+
+    sunMesh.material.needsUpdate =
+      true;
+  }
+);
+  
   sunGlow =
     new THREE.Mesh(
       new THREE.SphereGeometry(
