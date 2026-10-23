@@ -1170,7 +1170,11 @@ function getChillSpeedForPlanet(planetData) {
     solarPlanets.find(
       (planet) => planet.name === "Saturn"
     );
-
+  
+if (planetData.name === "Moon" || planetData.isMoon) {
+  return CHILL_SPEED;
+}
+  
   if (!saturn || saturn.radius <= 0) {
     return CHILL_SPEED;
   }
