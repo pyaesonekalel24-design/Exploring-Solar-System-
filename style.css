@@ -880,6 +880,11 @@ gap: 6px;
 }
 
 .vertical-pad .control-button {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.vertical-pad .control-button {
   width: 52px;
   height: 52px;
 
