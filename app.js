@@ -4098,7 +4098,7 @@ function updateMovement(
   ) {
     proposedPosition.addScaledVector(
       tempDirection,
-    movementSpeed *
+       -movementSpeed *
         deltaTime
     );
   }
@@ -4118,7 +4118,7 @@ function updateMovement(
   ) {
     proposedPosition.addScaledVector(
       tempRight,
-     movementSpeed *
+    -movementSpeed *
         deltaTime
     );
   }
@@ -4138,7 +4138,7 @@ function updateMovement(
   ) {
     proposedPosition.addScaledVector(
       worldUp,
-     movementSpeed *
+    -movementSpeed *
         deltaTime
     );
   }
