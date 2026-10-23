@@ -1112,3 +1112,19 @@ gap: 6px;
 #planet-label-layer .planet-label {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* =========================================================
+   SPRINT BUTTON
+   ========================================================= */
+
+.sprint-button {
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  border-color: rgba(150, 190, 255, 0.55);
+}
+
+.sprint-button.is-active {
+  background: rgba(100, 160, 255, 0.3);
+  border-color: #8dbbff;
+  box-shadow: 0 0 12px rgba(100, 160, 255, 0.25);
+}
