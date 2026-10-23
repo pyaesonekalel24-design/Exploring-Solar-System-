@@ -1172,11 +1172,10 @@ function updateMovementSpeed(deltaTime) {
 
   const targetSpeed = mode.speed;
 
- if (currentSpeedMode === "chill") {
-  currentMovementSpeed =
-    chillSpeedForCurrentPlanet;
-  return;
-}
+  if (currentSpeedMode === "chill") {
+    currentMovementSpeed = CHILL_SPEED;
+    return;
+  }
 
   const difference =
     targetSpeed - currentMovementSpeed;
@@ -4294,16 +4293,8 @@ function updateOrbits(
    CREATOR TELEPORT
    ========================================================= */
 
-const SATURN_RADIUS_KM = 58232;
-
-let chillSpeedForCurrentPlanet = CHILL_SPEED;
-
 function teleportToPlanet(planetData) {
- setSpeedMode("chill");
-
-chillSpeedForCurrentPlanet =
-  CHILL_SPEED *
-  (planetData.radiusKm / SATURN_RADIUS_KM);
+  setSpeedMode("chill");
 
   planetData.planet.getWorldPosition(tempWorld);
 
