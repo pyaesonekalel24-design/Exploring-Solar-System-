@@ -41,16 +41,16 @@ let solarSystemRoot = null;
 
 let solarPlanets = [];
 
+let earthNightMaterial = null;
+
 let moonPivot = null;
 
 let stars = null;
 
 let sunSprite = null;
 
-
 let sunLight = null; 
 let hemisphereLight = null;
-
 
 let sunMesh = null;
 
@@ -2298,8 +2298,8 @@ function createPlanet(data) {
      EARTH DETAIL
      ======================================================= */
 
-  let cloudMesh =
-    null;
+ let cloudMesh = null;
+let earthNightMesh = null;
   
 let venusAtmosphereMesh = null;
   
@@ -2367,6 +2367,108 @@ let venusAtmosphereMesh = null;
 
         cloudMaterial.needsUpdate =
           true;
+      }
+    );
+        earthNightMaterial =
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uNightMap: {
+            value: null
+          },
+
+          uSunPosition: {
+            value: new THREE.Vector3()
+          }
+        },
+
+        vertexShader: `
+          varying vec2 vUv;
+          varying vec3 vWorldPosition;
+          varying vec3 vWorldNormal;
+
+          void main() {
+            vUv = uv;
+
+            vec4 worldPosition =
+              modelMatrix * vec4(position, 1.0);
+
+            vWorldPosition =
+              worldPosition.xyz;
+
+            vWorldNormal =
+              normalize(
+                mat3(transpose(inverse(modelMatrix))) *
+                normal
+              );
+
+            gl_Position =
+              projectionMatrix *
+              viewMatrix *
+              worldPosition;
+          }
+        `,
+
+        fragmentShader: `
+          uniform sampler2D uNightMap;
+          uniform vec3 uSunPosition;
+
+          varying vec2 vUv;
+          varying vec3 vWorldPosition;
+          varying vec3 vWorldNormal;
+
+          void main() {
+            vec3 nightColor =
+              texture2D(uNightMap, vUv).rgb;
+
+            vec3 toSun =
+              normalize(
+                uSunPosition - vWorldPosition
+              );
+
+            float sunFacing =
+              dot(
+                normalize(vWorldNormal),
+                toSun
+              );
+
+            float nightFactor =
+              1.0 - smoothstep(
+                -0.12,
+                0.12,
+                sunFacing
+              );
+
+            gl_FragColor =
+              vec4(
+                nightColor,
+                nightFactor
+              );
+          }
+        `,
+
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.FrontSide
+      });
+
+    earthNightMesh =
+      new THREE.Mesh(
+        new THREE.SphereGeometry(
+          planetRadius * 1.003,
+          sphereSegments,
+          sphereRings
+        ),
+        earthNightMaterial
+      );
+
+    planet.add(earthNightMesh);
+
+    loadTextureWithFallback(
+      TEXTURE_URLS.earthNight,
+      (texture) => {
+        earthNightMaterial.uniforms.uNightMap.value =
+          texture;
       }
     );
   }
@@ -4587,7 +4689,16 @@ function animate() {
     );
   }
 
- updateSunLensFlare();
+updateSunLensFlare();
+
+if (
+  earthNightMaterial &&
+  sunMesh
+) {
+  sunMesh.getWorldPosition(
+    earthNightMaterial.uniforms.uSunPosition.value
+  );
+}
 
 renderer.render(
   scene,
