@@ -388,7 +388,7 @@ const TEXTURE_URLS = {
   ],
 
   venusAtmosphere: [
-  "./textures/all%20planets%20surface/YOUR_VENUS_ATMOSPHERE_FILENAME.jpg"
+  "./textures/all%20planets%20surface/2k_venus_atmosphere.jpg.jpg"
 ],
 
   earth: [
