@@ -1165,6 +1165,22 @@ function updateCreatorLabelMode() {
    MOVEMENT SPEED
    ========================================================= */
 
+function getChillSpeedForPlanet(planetData) {
+  const saturn =
+    solarPlanets.find(
+      (planet) => planet.name === "Saturn"
+    );
+
+  if (!saturn || saturn.radius <= 0) {
+    return CHILL_SPEED;
+  }
+
+  return (
+    CHILL_SPEED *
+    (planetData.radius / saturn.radius)
+  );
+}
+
 function updateMovementSpeed(deltaTime) {
   const mode =
     speedModes[currentSpeedMode] ||
@@ -1172,11 +1188,11 @@ function updateMovementSpeed(deltaTime) {
 
   const targetSpeed = mode.speed;
 
-  if (currentSpeedMode === "chill") {
-    currentMovementSpeed = CHILL_SPEED;
-    return;
-  }
-
+ if (currentSpeedMode === "chill") {
+  currentMovementSpeed =
+    chillSpeedForCurrentPlanet;
+  return;
+}
   const difference =
     targetSpeed - currentMovementSpeed;
 
@@ -4292,9 +4308,12 @@ function updateOrbits(
 /* =========================================================
    CREATOR TELEPORT
    ========================================================= */
+let chillSpeedForCurrentPlanet = CHILL_SPEED;
 
 function teleportToPlanet(planetData) {
   setSpeedMode("chill");
+  chillSpeedForCurrentPlanet =
+  getChillSpeedForPlanet(planetData);
 
   planetData.planet.getWorldPosition(tempWorld);
 
