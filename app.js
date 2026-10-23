@@ -4293,14 +4293,10 @@ function updateOrbits(
    CREATOR TELEPORT
    ========================================================= */
 
-function teleportToPlanet(
-  planetData
-) {
-   planetData
-    .planet
-    .getWorldPosition(
-      tempWorld
-    );
+function teleportToPlanet(planetData) {
+  setSpeedMode("chill");
+
+  planetData.planet.getWorldPosition(tempWorld);
 
   const away =
     new THREE.Vector3()
