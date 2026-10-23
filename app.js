@@ -243,6 +243,8 @@ let currentMovementSpeed =
 /* =========================================================
    INPUT
    ========================================================= */
+let sprintHeld = false;
+const SPRINT_MULTIPLIER = 1.5;
 
 const pressedControls = new Set();
 const pressedKeys = new Set();
@@ -4078,12 +4080,16 @@ function updateMovement(
   const proposedPosition =
     camera.position.clone();
 
+    const movementSpeed =
+    currentMovementSpeed *
+    (sprintHeld ? SPRINT_MULTIPLIER : 1);
+
   if (
     movingForward
   ) {
     proposedPosition.addScaledVector(
       tempDirection,
-      currentMovementSpeed *
+     movementSpeed *
         deltaTime
     );
   }
@@ -4093,7 +4099,7 @@ function updateMovement(
   ) {
     proposedPosition.addScaledVector(
       tempDirection,
-      -currentMovementSpeed *
+    movementSpeed *
         deltaTime
     );
   }
@@ -4103,7 +4109,7 @@ function updateMovement(
   ) {
     proposedPosition.addScaledVector(
       tempRight,
-      currentMovementSpeed *
+     movementSpeed *
         deltaTime
     );
   }
@@ -4113,7 +4119,7 @@ function updateMovement(
   ) {
     proposedPosition.addScaledVector(
       tempRight,
-      -currentMovementSpeed *
+     movementSpeed *
         deltaTime
     );
   }
@@ -4123,7 +4129,7 @@ function updateMovement(
   ) {
     proposedPosition.addScaledVector(
       worldUp,
-      currentMovementSpeed *
+     movementSpeed *
         deltaTime
     );
   }
@@ -4133,7 +4139,7 @@ function updateMovement(
   ) {
     proposedPosition.addScaledVector(
       worldUp,
-      -currentMovementSpeed *
+     movementSpeed *
         deltaTime
     );
   }
@@ -4749,6 +4755,44 @@ function setupControls() {
         return;
       }
 
+      const sprintButton =
+  document.getElementById("sprint-button");
+
+function startSprint() {
+  sprintHeld = true;
+  sprintButton.classList.add("is-active");
+}
+
+function stopSprint() {
+  sprintHeld = false;
+  sprintButton.classList.remove("is-active");
+}
+
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Shift") {
+    sprintHeld = true;
+    sprintButton.classList.add("is-active");
+  }
+});
+
+window.addEventListener("keyup", (event) => {
+  if (event.key === "Shift") {
+    stopSprint();
+  }
+});
+
+window.addEventListener("blur", stopSprint);
+
+sprintButton.addEventListener("pointerdown", (event) => {
+  event.preventDefault();
+  startSprint();
+  sprintButton.setPointerCapture(event.pointerId);
+});
+
+sprintButton.addEventListener("pointerup", stopSprint);
+sprintButton.addEventListener("pointercancel", stopSprint);
+sprintButton.addEventListener("lostpointercapture", stopSprint);
+      
       event.preventDefault();
 
       camera.fov =
