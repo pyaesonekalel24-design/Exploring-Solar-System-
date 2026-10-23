@@ -1,4 +1,3 @@
-
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
 
 import {
@@ -4744,18 +4743,8 @@ function startGame() {
 function setupControls() {
   const canvas =
     renderer.domElement;
-
-  canvas.style.touchAction =
-    "none";
-
-  canvas.addEventListener(
-    "wheel",
-    (event) => {
-      if (!gameStarted) {
-        return;
-      }
-
-      const sprintButton =
+  
+   const sprintButton =
   document.getElementById("sprint-button");
 
 function startSprint() {
@@ -4783,16 +4772,52 @@ window.addEventListener("keyup", (event) => {
 
 window.addEventListener("blur", stopSprint);
 
-sprintButton.addEventListener("pointerdown", (event) => {
-  event.preventDefault();
-  startSprint();
-  sprintButton.setPointerCapture(event.pointerId);
-});
+sprintButton.addEventListener(
+  "pointerdown",
+  (event) => {
+    event.preventDefault();
+    event.stopPropagation();
 
-sprintButton.addEventListener("pointerup", stopSprint);
-sprintButton.addEventListener("pointercancel", stopSprint);
-sprintButton.addEventListener("lostpointercapture", stopSprint);
-      
+    startSprint();
+
+    try {
+      sprintButton.setPointerCapture(
+        event.pointerId
+      );
+    } catch {
+      // Optional.
+    }
+  }
+);
+
+sprintButton.addEventListener(
+  "pointerup",
+  (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    stopSprint();
+  }
+);
+
+sprintButton.addEventListener(
+  "pointercancel",
+  stopSprint
+);
+
+sprintButton.addEventListener(
+  "lostpointercapture",
+  stopSprint
+);
+  canvas.style.touchAction =
+    "none";
+
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      if (!gameStarted) {
+        return;
+      }
+
       event.preventDefault();
 
       camera.fov =
