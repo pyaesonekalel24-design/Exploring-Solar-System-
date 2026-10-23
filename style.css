@@ -1128,3 +1128,26 @@ gap: 6px;
   border-color: #8dbbff;
   box-shadow: 0 0 12px rgba(100, 160, 255, 0.25);
 }
+.sprint-button {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sprint-button svg {
+  width: 23px;
+  height: 23px;
+  display: block;
+}
+
+.sprint-button.is-active {
+  background: rgba(100, 160, 255, 0.3);
+  border-color: #8dbbff;
+  box-shadow: 0 0 12px rgba(100, 160, 255, 0.3);
+}
